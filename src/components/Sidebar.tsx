@@ -26,10 +26,10 @@ export function Sidebar() {
           width: 26, height: 26, borderRadius: 7,
           background: "var(--ink)",
           display: "grid", placeItems: "center",
-          color: "#FFF", fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em",
-        }}>L</div>
+          color: "var(--bg)", fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em",
+        }}>S</div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.01em" }}>Ledger</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.01em" }}>SaaS Usage</div>
           <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 1 }}>AI spend</div>
         </div>
       </div>

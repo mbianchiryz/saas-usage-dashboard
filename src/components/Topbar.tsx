@@ -1,4 +1,28 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Sun, Moon } from "lucide-react";
+
 export function Topbar() {
+  const [dark, setDark] = useState(false);
+
+  /* Persist preference */
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark") { setDark(true); document.documentElement.setAttribute("data-theme", "dark"); }
+  }, []);
+
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    if (next) {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("theme", "light");
+    }
+  }
+
   return (
     <header style={{
       height: 56, flexShrink: 0,
@@ -7,34 +31,27 @@ export function Topbar() {
       display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "0 32px",
     }}>
+      {/* Breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--ink-3)" }}>
         <span>Workspace</span>
         <span style={{ color: "var(--ink-4)" }}>/</span>
         <span style={{ color: "var(--ink)", fontWeight: 500 }}>AI spend</span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "6px 12px", borderRadius: 8,
-          background: "var(--panel-2)", border: "1px solid var(--line)",
-          fontSize: 12, color: "var(--ink-4)", minWidth: 220,
-        }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          Search developers, models…
-          <span style={{ marginLeft: "auto", fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "var(--panel)", border: "1px solid var(--line)", color: "var(--ink-3)" }}>
-            ⌘K
-          </span>
-        </div>
-        <button style={{
-          background: "var(--accent)", color: "#FFF", border: "none",
-          fontSize: 12, fontWeight: 500, padding: "7px 14px",
-          borderRadius: 8, cursor: "pointer",
-        }}>
-          Share with leadership
-        </button>
-      </div>
+
+      {/* Theme toggle */}
+      <button
+        onClick={toggleTheme}
+        title={dark ? "Switch to light mode" : "Switch to dark mode"}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          width: 34, height: 34, borderRadius: "var(--r-sm)",
+          border: "1px solid var(--line)", background: "var(--panel-2)",
+          color: "var(--ink-3)", cursor: "pointer",
+          transition: "background .15s, color .15s",
+        }}
+      >
+        {dark ? <Sun size={15} /> : <Moon size={15} />}
+      </button>
     </header>
   );
 }

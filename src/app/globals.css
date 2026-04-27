@@ -35,6 +35,31 @@
   --r-lg: 14px;
 }
 
+/* ── Dark theme ── */
+[data-theme="dark"] {
+  --bg:          #0C0A09;
+  --panel:       #171513;
+  --panel-2:     #1C1A18;
+  --hover:       #211F1D;
+  --ink:         #FAFAF9;
+  --ink-2:       #E7E5E4;
+  --ink-3:       #A8A29E;
+  --ink-4:       #57534E;
+  --line:        #292524;
+  --line-2:      #3D3937;
+  --accent:      #10B981;
+  --accent-2:    #34D399;
+  --accent-soft: #052E16;
+  --warn:        #FBBF24;
+  --warn-soft:   #451A03;
+  --danger:      #F87171;
+  --danger-soft: #450A0A;
+  --p-anthropic:      #A78BFA;
+  --p-anthropic-soft: #2E1065;
+  --p-openai:         #2DD4BF;
+  --p-openai-soft:    #042F2E;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
