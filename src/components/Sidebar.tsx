@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Avatar } from "@/components/ui";
 
 const NAV = [
   { href: "/",           label: "Overview" },
@@ -65,16 +64,6 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer user */}
-      <div style={{ marginTop: "auto", padding: "12px 8px", borderTop: "1px solid var(--line)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar name="M Bianchi" size={28} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: "var(--ink)" }}>M. Bianchi</div>
-            <div style={{ fontSize: 10, color: "var(--ink-4)" }}>Finance · Owner</div>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 }
