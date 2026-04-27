@@ -1,6 +1,6 @@
 import { repo } from "@/lib/repo";
 import { fmtUSD, fmtPct } from "@/lib/format";
-import { Panel, PageHeader, Metric, SectionTitle, ProviderTag, Pill, Th, Td } from "@/components/ui";
+import { Panel, PageHeader, Metric, SectionTitle, ProviderTag, Pill, Sparkline, Th, Td, PROVIDER_HEX } from "@/components/ui";
 import { AmexClientSection } from "./AmexClientSection";
 
 export default async function AmexPage() {
@@ -35,6 +35,15 @@ export default async function AmexPage() {
   const totalAmex  = recon.reduce((s, r) => s + r.amex, 0);
   const totalDelta = totalAmex - totalApi;
   const totalVar   = totalApi > 0 ? totalDelta / totalApi : 0;
+
+  /* Variance trend per provider — chronological sequence of monthly delta% values */
+  const trendByProvider = new Map<string, number[]>();
+  const reconChrono = [...recon].sort((a, b) => a.month.localeCompare(b.month));
+  for (const r of reconChrono) {
+    const arr = trendByProvider.get(r.provider) ?? [];
+    arr.push(r.deltaPct * 100); // express as percent for the sparkline
+    trendByProvider.set(r.provider, arr);
+  }
 
   return (
     <div>
@@ -83,11 +92,14 @@ export default async function AmexPage() {
                 <Th align="right">Amex billed</Th>
                 <Th align="right">Delta</Th>
                 <Th align="right">Variance</Th>
+                <Th align="right">Trend</Th>
               </tr>
             </thead>
             <tbody>
               {recon.map((r, i) => {
                 const flag = Math.abs(r.deltaPct) > 0.02;
+                const trend = trendByProvider.get(r.provider) ?? [];
+                const sustained = trend.length >= 3 && trend.slice(-3).every((v) => Math.abs(v) > 2);
                 return (
                   <tr key={i}>
                     <Td style={{ fontWeight: 500, color: "var(--ink)" }}>
@@ -102,6 +114,32 @@ export default async function AmexPage() {
                     </Td>
                     <Td align="right">
                       <Pill tone={flag ? "danger" : "accent"} size="sm">{fmtPct(r.deltaPct)}</Pill>
+                    </Td>
+                    <Td align="right">
+                      {trend.length >= 2 ? (
+                        <div
+                          title={sustained
+                            ? `Sustained variance over ${trend.length} months — likely measurement issue`
+                            : `Variance % over the last ${trend.length} months`}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                        >
+                          <Sparkline
+                            values={trend}
+                            color={sustained ? "var(--danger)" : PROVIDER_HEX[r.provider as "anthropic" | "openai"]}
+                            width={64}
+                            height={20}
+                            fill={false}
+                          />
+                          <span style={{
+                            fontSize: 10, color: sustained ? "var(--danger)" : "var(--ink-4)",
+                            fontWeight: sustained ? 600 : 400,
+                          }}>
+                            {trend.length}m
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 11, color: "var(--ink-4)" }}>—</span>
+                      )}
                     </Td>
                   </tr>
                 );

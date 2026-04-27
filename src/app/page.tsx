@@ -1,11 +1,14 @@
+import Link from "next/link";
 import { repo } from "@/lib/repo";
-import { fmtNum } from "@/lib/format";
 import { sumCost, projectMonthEnd, dailySeriesByProvider } from "@/lib/metrics";
 import { parseRange, previousRange, filterByRange, rangeDays } from "@/lib/dateRange";
+import { detectAnomalies, anomaliesInRange } from "@/lib/anomalies";
+import { developerEfficiency } from "@/lib/efficiency";
 import {
   Panel, Metric, PageHeader, SectionTitle, Sparkline,
   Avatar, Pill, PROVIDER_HEX,
 } from "@/components/ui";
+import { AlertTriangle } from "lucide-react";
 import { OverviewCharts } from "./OverviewCharts";
 import { ProviderMixChart } from "./ProviderMixChart";
 
@@ -63,6 +66,22 @@ export default async function OverviewPage({
   const topDevs = [...byDev.values()].sort((a, b) => b.total - a.total).slice(0, 6);
   const maxDev  = topDevs[0]?.total ?? 1;
 
+  /* ── Anomalies (>2σ daily spend per developer, full-history baseline) ── */
+  const keyToDev      = new Map(keys.map((k) => [k.id, k.developer_id]));
+  const allAnomalies  = detectAnomalies({ rows: usage, keyToDev });
+  const anomaliesNow  = anomaliesInRange(allAnomalies, range.from, range.to)
+                          .map((a) => ({ ...a, dev: devById.get(a.developerId) }))
+                          .filter((a) => a.dev)
+                          .slice(0, 5);
+
+  /* ── Token efficiency leaderboard for the period ── */
+  const efficiency = developerEfficiency(periodRows, keyToDev)
+    .filter((e) => e.outputTokens > 100_000)        // ignore noise
+    .map((e) => ({ ...e, dev: devById.get(e.developerId) }))
+    .filter((e) => e.dev)
+    .sort((a, b) => b.costPerMOutput - a.costPerMOutput) // most expensive per token first
+    .slice(0, 6);
+
   return (
     <div>
       <PageHeader
@@ -105,11 +124,40 @@ export default async function OverviewPage({
         />
       </div>
 
+      {/* Anomalies banner */}
+      {anomaliesNow.length > 0 && (
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: 12,
+          padding: "14px 18px", borderRadius: "var(--r-md)",
+          border: "1px solid var(--warn-soft)", background: "var(--warn-soft)",
+          marginBottom: 24,
+        }}>
+          <AlertTriangle size={16} style={{ color: "var(--warn)", marginTop: 2, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--warn)", marginBottom: 4 }}>
+              {anomaliesNow.length} spend {anomaliesNow.length === 1 ? "anomaly" : "anomalies"} detected this period
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
+              {anomaliesNow.map((a) => (
+                <Link key={`${a.developerId}-${a.date}`} href={`/developers/${a.developerId}`}
+                      style={{ color: "var(--ink-2)", textDecoration: "none", fontWeight: 500 }}>
+                  <span>{a.dev!.name}</span>
+                  <span style={{ color: "var(--ink-4)" }}> · {a.date} · </span>
+                  <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                    ${Math.round(a.spend).toLocaleString()} ({a.zScore.toFixed(1)}σ)
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Area chart — client component for recharts */}
       <OverviewCharts series={series} burn={burn} />
 
       {/* Bottom row: Top devs + Provider mix */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, marginBottom: 16 }}>
         {/* Top developers */}
         <Panel>
           <SectionTitle sub={`By spend in ${range.label.toLowerCase()}`}>Top developers</SectionTitle>
@@ -134,6 +182,47 @@ export default async function OverviewPage({
 
         <ProviderMixChart ant={periodAnt} oai={periodOai} />
       </div>
+
+      {/* Token efficiency leaderboard */}
+      {efficiency.length > 0 && (
+        <Panel>
+          <SectionTitle sub="Highest $ spent per million output tokens — usually means giant prompts, no caching, or wrong model">
+            Token efficiency · who's overpaying
+          </SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 24px", marginTop: 4 }}>
+            {efficiency.map((e, i) => {
+              const max = efficiency[0].costPerMOutput;
+              return (
+                <Link
+                  key={e.developerId}
+                  href={`/developers/${e.developerId}`}
+                  style={{
+                    display: "grid", gridTemplateColumns: "20px auto 1fr auto", gap: 12,
+                    alignItems: "center", textDecoration: "none",
+                  }}
+                >
+                  <span className="tnum" style={{ color: "var(--ink-4)", fontSize: 12, fontWeight: 500 }}>{i + 1}</span>
+                  <Avatar name={e.dev!.name} size={26} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                      {e.dev!.name}
+                    </div>
+                    <div style={{ marginTop: 4, height: 4, borderRadius: 999, background: "var(--panel-2)", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${(e.costPerMOutput / max) * 100}%`, background: "var(--warn)", borderRadius: 999 }} />
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div className="tnum" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+                      ${e.costPerMOutput.toFixed(2)}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 1 }}>per 1M out</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }
