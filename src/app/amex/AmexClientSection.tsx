@@ -58,13 +58,17 @@ export function AmexClientSection() {
     } catch { setSyncState("error"); }
   }
 
-  async function handleClear() {
+  /** Returns true on success, false if the server rejected the PIN (or any failure). */
+  async function handleClear(pin: string): Promise<boolean> {
+    const res = await fetch("/api/shared", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: SHARED_KEY, value: {}, pin }),
+    });
+    if (!res.ok) return false;
+
     setParseResult(null); setFileName(undefined); setSyncState("idle"); setLastSaved(null);
     localStorage.removeItem(LS_KEY_CSV); localStorage.removeItem(LS_KEY_NAME);
-    await fetch("/api/shared", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: SHARED_KEY, value: {} }),
-    });
+    return true;
   }
 
   return (

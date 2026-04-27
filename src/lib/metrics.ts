@@ -1,12 +1,15 @@
 import type { UsageDaily, Provider } from "./types";
 
-const TODAY = "2026-04-24";
+/** Live "today" — recomputed on every call so MTD math stays fresh. */
+export function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
-export function mtdRange(today = TODAY): { from: string; to: string } {
+export function mtdRange(today = todayStr()): { from: string; to: string } {
   return { from: today.slice(0, 7) + "-01", to: today };
 }
 
-export function prevMonthRange(today = TODAY): { from: string; to: string } {
+export function prevMonthRange(today = todayStr()): { from: string; to: string } {
   const [y, m] = today.slice(0, 7).split("-").map(Number);
   const prevM = m === 1 ? 12 : m - 1;
   const prevY = m === 1 ? y - 1 : y;
@@ -21,7 +24,7 @@ export function sumCost(rows: UsageDaily[], provider?: Provider) {
     .reduce((s, r) => s + r.cost_usd, 0);
 }
 
-export function projectMonthEnd(mtd: number, today = TODAY): number {
+export function projectMonthEnd(mtd: number, today = todayStr()): number {
   const [y, m, d] = today.split("-").map(Number);
   const daysElapsed = d;
   const daysInMonth = new Date(y, m, 0).getDate();

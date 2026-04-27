@@ -76,7 +76,9 @@ export const apiKeys: ApiKey[] = [
   })),
 ];
 
-const TODAY = new Date("2026-04-24");
+/** Mock data anchor — pinned to "today" so the dashboard always shows fresh data.
+ *  Stripped to YYYY-MM-DD (no time) so all dates are deterministic per day. */
+const TODAY = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
 
 function dateStr(d: Date) {
   return d.toISOString().slice(0, 10);

@@ -3,11 +3,10 @@ import { useCallback, useState } from "react";
 import { Upload, FileText, X, Lock } from "lucide-react";
 import { parseAmexCsv, type ParseResult } from "@/lib/amex-parser";
 
-const CLEAR_PIN = "1234";
-
 interface Props {
   onParsed: (result: ParseResult, fileName: string, rawText: string) => void;
-  onClear: () => void;
+  /** Returns true if the server accepted the PIN and cleared, false otherwise. */
+  onClear: (pin: string) => Promise<boolean>;
   hasData: boolean;
   fileName?: string;
 }
@@ -18,6 +17,7 @@ export function AmexCsvUploader({ onParsed, onClear, hasData, fileName }: Props)
   const [showPin,   setShowPin]   = useState(false);
   const [pin,       setPin]       = useState("");
   const [pinError,  setPinError]  = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const process = useCallback(
     (file: File) => {
@@ -59,9 +59,13 @@ export function AmexCsvUploader({ onParsed, onClear, hasData, fileName }: Props)
 
   function handleClearClick() { setPin(""); setPinError(false); setShowPin(true); }
 
-  function handlePinConfirm() {
-    if (pin === CLEAR_PIN) { setShowPin(false); setPin(""); onClear(); }
-    else { setPinError(true); setPin(""); }
+  async function handlePinConfirm() {
+    if (verifying) return;
+    setVerifying(true);
+    const ok = await onClear(pin);
+    setVerifying(false);
+    if (ok) { setShowPin(false); setPin(""); }
+    else    { setPinError(true); setPin(""); }
   }
 
   function handlePinCancel() { setShowPin(false); setPin(""); setPinError(false); }
@@ -148,13 +152,16 @@ export function AmexCsvUploader({ onParsed, onClear, hasData, fileName }: Props)
                 </button>
                 <button
                   onClick={handlePinConfirm}
+                  disabled={verifying}
                   style={{
                     flex: 1, border: "1px solid #FECACA", borderRadius: "var(--r-sm)",
                     background: "#FEF2F2", color: "#DC2626",
-                    padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer",
+                    padding: "8px 0", fontSize: 13, fontWeight: 500,
+                    cursor: verifying ? "default" : "pointer",
+                    opacity: verifying ? 0.6 : 1,
                   }}
                 >
-                  Clear
+                  {verifying ? "Verifying…" : "Clear"}
                 </button>
               </div>
             </div>
