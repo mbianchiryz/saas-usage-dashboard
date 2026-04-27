@@ -1,10 +1,11 @@
 import { repo } from "@/lib/repo";
-import { mtdRange } from "@/lib/metrics";
+import { parseRange, filterByRange } from "@/lib/dateRange";
+import type { NextRequest } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const range = parseRange(req.nextUrl.searchParams);
   const usage = await repo.getUsage();
-  const { from, to } = mtdRange();
-  const rows = usage.filter((r) => r.date >= from && r.date <= to);
+  const rows  = filterByRange(usage, range);
 
   type Agg = { model: string; provider: "anthropic" | "openai"; cost: number; input_tokens: number; output_tokens: number };
   const map = new Map<string, Agg>();

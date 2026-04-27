@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMobileNav } from "./MobileNavProvider";
 
 const NAV = [
   { href: "/",           label: "Overview" },
@@ -11,14 +12,25 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { open, setOpen } = useMobileNav();
   return (
-    <aside style={{
-      width: 220, flexShrink: 0,
-      background: "var(--panel)",
-      borderRight: "1px solid var(--line)",
-      display: "flex", flexDirection: "column",
-      padding: "20px 14px",
-    }}>
+    <>
+      {/* Drawer overlay on narrow screens */}
+      <div
+        className={`mobile-overlay${open ? " open" : ""}`}
+        onClick={() => setOpen(false)}
+        aria-hidden
+      />
+      <aside
+        className={`app-sidebar${open ? " open" : ""}`}
+        style={{
+          width: 220, flexShrink: 0,
+          background: "var(--panel)",
+          borderRight: "1px solid var(--line)",
+          display: "flex", flexDirection: "column",
+          padding: "20px 14px",
+        }}
+      >
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px 22px" }}>
         <div style={{
@@ -64,6 +76,7 @@ export function Sidebar() {
         })}
       </nav>
 
-    </aside>
+      </aside>
+    </>
   );
 }

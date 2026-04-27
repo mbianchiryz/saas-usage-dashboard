@@ -195,13 +195,15 @@ export function ProviderTag({ provider }: { provider: "anthropic" | "openai" }) 
 }
 
 // ─── Table helpers ───────────────────────────────────────────────────────────
-export function Th({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" | "center" }) {
+export function Th({
+  children, align = "left", style,
+}: { children: ReactNode; align?: "left" | "right" | "center"; style?: CSSProperties }) {
   return (
     <th style={{
       padding: "10px 16px", textAlign: align,
       fontSize: 11, fontWeight: 500, letterSpacing: ".04em", textTransform: "uppercase",
       color: "var(--ink-4)", borderBottom: "1px solid var(--line)", background: "var(--panel)",
-      whiteSpace: "nowrap",
+      whiteSpace: "nowrap", ...style,
     }}>
       {children}
     </th>

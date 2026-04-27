@@ -1,23 +1,26 @@
 import { repo } from "@/lib/repo";
-import { fmtUSD } from "@/lib/format";
-import { mtdRange } from "@/lib/metrics";
-import { Panel, PageHeader, Pill, Avatar, RatioBar, Th, Td } from "@/components/ui";
+import { parseRange, filterByRange } from "@/lib/dateRange";
+import { Panel, PageHeader, Pill } from "@/components/ui";
+import { DevelopersTable, type DevRow } from "./DevelopersTable";
 
-export default async function DevelopersPage() {
+export default async function DevelopersPage({
+  searchParams,
+}: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp    = await searchParams;
+  const range = parseRange(sp);
+
   const [usage, keys, devs] = await Promise.all([
     repo.getUsage(),
     repo.getApiKeys(),
     repo.getDevelopers(),
   ]);
 
-  const { from, to } = mtdRange();
-  const mtdRows = usage.filter((r) => r.date >= from && r.date <= to);
-  const keyById = new Map(keys.map((k) => [k.id, k]));
-  const devById = new Map(devs.map((d) => [d.id, d]));
+  const periodRows = filterByRange(usage, range);
+  const keyById    = new Map(keys.map((k) => [k.id, k]));
+  const devById    = new Map(devs.map((d) => [d.id, d]));
 
-  type Row = { id: string; name: string; team: string; anthropic: number; openai: number; total: number };
-  const byDev = new Map<string, Row>();
-  for (const u of mtdRows) {
+  const byDev = new Map<string, DevRow>();
+  for (const u of periodRows) {
     const k = keyById.get(u.api_key_id); if (!k) continue;
     const d = devById.get(k.developer_id); if (!d) continue;
     const row = byDev.get(d.id) ?? { id: d.id, name: d.name, team: d.team ?? "", anthropic: 0, openai: 0, total: 0 };
@@ -34,7 +37,7 @@ export default async function DevelopersPage() {
     <div>
       <PageHeader
         title="By developer"
-        subtitle={`${rows.length} active developers · month-to-date`}
+        subtitle={`${rows.length} active developers · ${range.label.toLowerCase()}`}
         right={
           <>
             <Pill tone="neutral">${Math.round(grandTotal).toLocaleString()} total</Pill>
@@ -43,52 +46,7 @@ export default async function DevelopersPage() {
       />
 
       <Panel padding={0} style={{ overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <Th>#</Th>
-              <Th>Developer</Th>
-              <Th>Team</Th>
-              <Th align="right">Anthropic</Th>
-              <Th align="right">OpenAI</Th>
-              <Th align="right">Total</Th>
-              <Th>Mix</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.id}>
-                <Td style={{ color: "var(--ink-4)", width: 48 }}>{i + 1}</Td>
-                <Td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Avatar name={r.name} size={28} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{r.name}</div>
-                      <div style={{ fontSize: 11, color: "var(--ink-4)" }}>
-                        {r.name.toLowerCase().replace(/\s+/g, ".")}@company.com
-                      </div>
-                    </div>
-                  </div>
-                </Td>
-                <Td>
-                  <Pill tone="neutral" size="sm">{r.team}</Pill>
-                </Td>
-                <Td align="right" mono style={{ color: r.anthropic > 0 ? "var(--ink-2)" : "var(--ink-4)" }}>
-                  {r.anthropic > 0 ? fmtUSD(r.anthropic) : "—"}
-                </Td>
-                <Td align="right" mono style={{ color: r.openai > 0 ? "var(--ink-2)" : "var(--ink-4)" }}>
-                  {r.openai > 0 ? fmtUSD(r.openai) : "—"}
-                </Td>
-                <Td align="right" mono style={{ fontWeight: 600, color: "var(--ink)" }}>
-                  {fmtUSD(r.total)}
-                </Td>
-                <Td style={{ width: 200 }}>
-                  <RatioBar a={r.anthropic} b={r.openai} total={maxTotal} />
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DevelopersTable rows={rows} maxTotal={maxTotal} />
       </Panel>
     </div>
   );

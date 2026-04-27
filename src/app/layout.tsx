@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
+import { MobileNavProvider } from "@/components/MobileNavProvider";
 
 export const metadata: Metadata = {
   title: "SaaS Usage Dashboard",
@@ -19,16 +20,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body style={{ display: "flex", height: "100vh", background: "var(--bg)" }}>
-        <Sidebar />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <Topbar />
-          <main style={{ flex: 1, overflowY: "auto", padding: "32px 40px 60px", background: "var(--bg)" }}>
-            <div style={{ maxWidth: 1240, margin: "0 auto" }}>
-              {children}
-            </div>
-          </main>
-        </div>
+      <body className="app-shell">
+        <MobileNavProvider>
+          <Sidebar />
+          <div className="app-main">
+            <Topbar />
+            <main className="app-content">
+              <div className="app-content-inner">{children}</div>
+            </main>
+          </div>
+        </MobileNavProvider>
       </body>
     </html>
   );

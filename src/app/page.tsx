@@ -1,6 +1,7 @@
 import { repo } from "@/lib/repo";
-import { fmtUSD, fmtNum } from "@/lib/format";
-import { mtdRange, prevMonthRange, sumCost, projectMonthEnd, dailySeriesByProvider } from "@/lib/metrics";
+import { fmtNum } from "@/lib/format";
+import { sumCost, projectMonthEnd, dailySeriesByProvider } from "@/lib/metrics";
+import { parseRange, previousRange, filterByRange, rangeDays } from "@/lib/dateRange";
 import {
   Panel, Metric, PageHeader, SectionTitle, Sparkline,
   Avatar, Pill, PROVIDER_HEX,
@@ -8,45 +9,51 @@ import {
 import { OverviewCharts } from "./OverviewCharts";
 import { ProviderMixChart } from "./ProviderMixChart";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const range = parseRange(sp);
+  const prev  = previousRange(range);
+
   const [usage, keys, devs] = await Promise.all([
     repo.getUsage(),
     repo.getApiKeys(),
     repo.getDevelopers(),
   ]);
 
-  const mtd  = mtdRange();
-  const prev = prevMonthRange();
-  const mtdRows  = usage.filter((r) => r.date >= mtd.from  && r.date <= mtd.to);
-  const prevRows = usage.filter((r) => r.date >= prev.from && r.date <= prev.to);
+  const periodRows = filterByRange(usage, range);
+  const prevRows   = filterByRange(usage, prev);
 
-  const mtdTotal  = sumCost(mtdRows);
-  const mtdAnt    = sumCost(mtdRows, "anthropic");
-  const mtdOai    = sumCost(mtdRows, "openai");
-  const prevTotal = sumCost(prevRows);
-  const projected = projectMonthEnd(mtdTotal);
-  const momChange = prevTotal > 0 ? (projected - prevTotal) / prevTotal : 0;
+  const periodTotal = sumCost(periodRows);
+  const periodAnt   = sumCost(periodRows, "anthropic");
+  const periodOai   = sumCost(periodRows, "openai");
+  const prevTotal   = sumCost(prevRows);
 
-  const cutoff = new Date(mtd.to);
+  /* Projection only makes sense for in-progress periods (preset = mtd, qtd, ytd) */
+  const isProjectable = range.preset === "mtd" || range.preset === "qtd" || range.preset === "ytd";
+  const days          = rangeDays(range);
+  const projected     = isProjectable ? projectMonthEnd(periodTotal, range.to) : periodTotal;
+  const momChange     = prevTotal > 0 ? ((isProjectable ? projected : periodTotal) - prevTotal) / prevTotal : 0;
+
+  /* 30-day rolling window for the area chart — independent of picker */
+  const cutoff = new Date(range.to + "T00:00:00");
   cutoff.setDate(cutoff.getDate() - 29);
-  const last30  = usage.filter((r) => r.date >= cutoff.toISOString().slice(0, 10));
+  const last30  = usage.filter((r) => r.date >= cutoff.toISOString().slice(0, 10) && r.date <= range.to);
   const series  = dailySeriesByProvider(last30);
 
-  const dayOfMonth = Number(mtd.to.slice(8));
-  const burn = mtdTotal / dayOfMonth;
+  const burn = periodTotal / days;
 
   // Sparklines — last 14 data points
   const totalSpark = series.slice(-14).map((s) => s.anthropic + s.openai);
   const antSpark   = series.slice(-14).map((s) => s.anthropic);
   const oaiSpark   = series.slice(-14).map((s) => s.openai);
 
-  const month = new Date(mtd.to + "T00:00").toLocaleString("en-US", { month: "long", year: "numeric" });
-
   // Top developers
   const keyById = new Map(keys.map((k) => [k.id, k]));
   const devById = new Map(devs.map((d) => [d.id, d]));
   const byDev   = new Map<string, { id: string; name: string; team: string; total: number }>();
-  for (const u of mtdRows) {
+  for (const u of periodRows) {
     const k = keyById.get(u.api_key_id); if (!k) continue;
     const d = devById.get(k.developer_id); if (!d) continue;
     const row = byDev.get(d.id) ?? { id: d.id, name: d.name, team: d.team ?? "", total: 0 };
@@ -60,39 +67,41 @@ export default async function OverviewPage() {
     <div>
       <PageHeader
         title="Overview"
-        scriptAccent="month-to-date"
-        subtitle={`Tracking AI spend across Anthropic & OpenAI · as of ${mtd.to}`}
-        right={<Pill tone="neutral">{month}</Pill>}
+        scriptAccent={range.label.toLowerCase()}
+        subtitle={`Tracking AI spend across Anthropic & OpenAI · ${range.from} → ${range.to}`}
+        right={<Pill tone="neutral">{days} day{days === 1 ? "" : "s"}</Pill>}
       />
 
       {/* Metric tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
         <Metric
           label="Total spend"
-          value={`$${Math.round(mtdTotal).toLocaleString()}`}
-          delta={`${((mtdTotal - prevTotal) / Math.max(prevTotal, 1) * 100).toFixed(1)}%`}
-          deltaTone={mtdTotal >= prevTotal ? "down" : "up"}
-          sub={`vs $${Math.round(prevTotal).toLocaleString()} last mo.`}
+          value={`$${Math.round(periodTotal).toLocaleString()}`}
+          delta={`${((periodTotal - prevTotal) / Math.max(prevTotal, 1) * 100).toFixed(1)}%`}
+          deltaTone={periodTotal >= prevTotal ? "down" : "up"}
+          sub={`vs $${Math.round(prevTotal).toLocaleString()} prev period`}
           sparkline={<Sparkline values={totalSpark} color="var(--ink-2)" width={70} height={28} fill />}
         />
         <Metric
           label="Anthropic"
-          value={`$${Math.round(mtdAnt).toLocaleString()}`}
-          sub={`${((mtdAnt / mtdTotal) * 100).toFixed(0)}% of total`}
+          value={`$${Math.round(periodAnt).toLocaleString()}`}
+          sub={`${periodTotal > 0 ? ((periodAnt / periodTotal) * 100).toFixed(0) : 0}% of total`}
           sparkline={<Sparkline values={antSpark} color={PROVIDER_HEX.anthropic} width={70} height={28} fill />}
         />
         <Metric
           label="OpenAI"
-          value={`$${Math.round(mtdOai).toLocaleString()}`}
-          sub={`${((mtdOai / mtdTotal) * 100).toFixed(0)}% of total`}
+          value={`$${Math.round(periodOai).toLocaleString()}`}
+          sub={`${periodTotal > 0 ? ((periodOai / periodTotal) * 100).toFixed(0) : 0}% of total`}
           sparkline={<Sparkline values={oaiSpark} color={PROVIDER_HEX.openai} width={70} height={28} fill />}
         />
         <Metric
-          label="Projected month-end"
-          value={`$${Math.round(projected).toLocaleString()}`}
-          delta={`${(momChange >= 0 ? "+" : "")}${(momChange * 100).toFixed(1)}%`}
-          deltaTone={momChange >= 0 ? "down" : "up"}
-          sub="vs last month"
+          label={isProjectable ? "Projected period-end" : "Daily burn"}
+          value={isProjectable
+            ? `$${Math.round(projected).toLocaleString()}`
+            : `$${Math.round(burn).toLocaleString()}`}
+          delta={isProjectable ? `${(momChange >= 0 ? "+" : "")}${(momChange * 100).toFixed(1)}%` : undefined}
+          deltaTone={isProjectable ? (momChange >= 0 ? "down" : "up") : undefined}
+          sub={isProjectable ? "vs prev period" : `avg over ${days} days`}
         />
       </div>
 
@@ -103,7 +112,7 @@ export default async function OverviewPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
         {/* Top developers */}
         <Panel>
-          <SectionTitle sub="By month-to-date spend">Top developers</SectionTitle>
+          <SectionTitle sub={`By spend in ${range.label.toLowerCase()}`}>Top developers</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {topDevs.map((d, i) => (
               <div key={d.id} style={{ display: "grid", gridTemplateColumns: "20px auto 1fr auto", gap: 12, alignItems: "center" }}>
@@ -123,7 +132,7 @@ export default async function OverviewPage() {
           </div>
         </Panel>
 
-        <ProviderMixChart ant={mtdAnt} oai={mtdOai} />
+        <ProviderMixChart ant={periodAnt} oai={periodOai} />
       </div>
     </div>
   );
