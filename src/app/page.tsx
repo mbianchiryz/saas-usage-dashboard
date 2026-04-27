@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { repo } from "@/lib/repo";
-import { sumCost, projectMonthEnd, dailySeriesByProvider } from "@/lib/metrics";
+import { supabase } from "@/lib/supabase";
+import { sumCost, projectMonthEnd, dailySeriesByProvider, todayStr, mtdRange } from "@/lib/metrics";
 import { parseRange, previousRange, filterByRange, rangeDays } from "@/lib/dateRange";
 import { detectAnomalies, anomaliesInRange } from "@/lib/anomalies";
 import { developerEfficiency } from "@/lib/efficiency";
+import { evaluateBudgets, describeScope, type Budget } from "@/lib/budgets";
 import {
   Panel, Metric, PageHeader, SectionTitle, Sparkline,
   Avatar, Pill, PROVIDER_HEX,
@@ -11,6 +13,7 @@ import {
 import { AlertTriangle } from "lucide-react";
 import { OverviewCharts } from "./OverviewCharts";
 import { ProviderMixChart } from "./ProviderMixChart";
+import { BurnUpChart, type BurnUpPoint } from "./BurnUpChart";
 
 export default async function OverviewPage({
   searchParams,
@@ -82,6 +85,44 @@ export default async function OverviewPage({
     .sort((a, b) => b.costPerMOutput - a.costPerMOutput) // most expensive per token first
     .slice(0, 6);
 
+  /* ── Budgets ── */
+  const today = todayStr();
+  const { data: budgetsRow } = await supabase
+    .from("shared_data").select("value").eq("key", "budgets").single();
+  const budgetList: Budget[] = Array.isArray(budgetsRow?.value?.list) ? budgetsRow.value.list : [];
+  const evaluations = evaluateBudgets(budgetList, usage, keys, devs, today);
+  const breaches    = evaluations.filter((e) => e.status !== "ok");
+
+  /* Pick a global monthly budget for the burn-up chart (if one exists) */
+  const burnUpBudget = budgetList.find((b) => b.scope === "global" && b.type === "monthly");
+  let burnUpData: BurnUpPoint[] | null = null;
+  let burnUpProjected = 0;
+  if (burnUpBudget) {
+    const { from, to } = mtdRange(today);
+    const mtdRows = usage.filter((r) => r.date >= from && r.date <= to);
+    const [year, month] = today.split("-").map(Number);
+    const totalDays  = new Date(year, month, 0).getDate();
+    const todayDay   = Number(today.slice(8));
+
+    /* Aggregate spend per day */
+    const byDay = new Map<number, number>();
+    for (const r of mtdRows) byDay.set(Number(r.date.slice(8)), (byDay.get(Number(r.date.slice(8))) ?? 0) + r.cost_usd);
+
+    let cumulative = 0;
+    burnUpData = [];
+    for (let d = 1; d <= totalDays; d++) {
+      const target = (burnUpBudget.amount / totalDays) * d;
+      if (d <= todayDay) {
+        cumulative += byDay.get(d) ?? 0;
+        burnUpData.push({ day: String(d).padStart(2, "0"), actual: Number(cumulative.toFixed(2)), target: Number(target.toFixed(2)) });
+      } else {
+        burnUpData.push({ day: String(d).padStart(2, "0"), actual: null, target: Number(target.toFixed(2)) });
+      }
+    }
+    const mtdTotal = mtdRows.reduce((s, r) => s + r.cost_usd, 0);
+    burnUpProjected = projectMonthEnd(mtdTotal, today);
+  }
+
   return (
     <div>
       <PageHeader
@@ -124,6 +165,50 @@ export default async function OverviewPage({
         />
       </div>
 
+      {/* Budget breach banner */}
+      {breaches.length > 0 && (
+        <div style={{
+          display: "flex", alignItems: "flex-start", gap: 12,
+          padding: "14px 18px", borderRadius: "var(--r-md)",
+          border: `1px solid ${breaches.some((b) => b.status === "exceeded") ? "var(--danger-soft)" : "var(--warn-soft)"}`,
+          background: breaches.some((b) => b.status === "exceeded") ? "var(--danger-soft)" : "var(--warn-soft)",
+          marginBottom: 24,
+        }}>
+          <AlertTriangle size={16} style={{
+            color: breaches.some((b) => b.status === "exceeded") ? "var(--danger)" : "var(--warn)",
+            marginTop: 2, flexShrink: 0,
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 13, fontWeight: 600, marginBottom: 6,
+              color: breaches.some((b) => b.status === "exceeded") ? "var(--danger)" : "var(--warn)",
+            }}>
+              {breaches.length} budget alert{breaches.length === 1 ? "" : "s"}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "var(--ink-3)" }}>
+              {breaches.map((b) => (
+                <div key={b.budget.id}>
+                  <strong style={{ color: "var(--ink-2)" }}>{b.budget.name}</strong>
+                  <span style={{ color: "var(--ink-4)" }}> · {describeScope(b.budget, devs)} · </span>
+                  <span className="tnum">{b.message}</span>
+                  <span style={{
+                    marginLeft: 8, padding: "1px 6px", borderRadius: 4,
+                    fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                    background: b.status === "exceeded" ? "var(--danger)" : "var(--warn)",
+                    color: "#FFF",
+                  }}>
+                    {b.status === "exceeded" ? `over by ${(b.pctUsed - 100).toFixed(0)}%` : `${b.pctUsed.toFixed(0)}% used`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <Link href="/budgets" style={{ display: "inline-block", marginTop: 8, fontSize: 11, color: "var(--ink-3)", textDecoration: "underline" }}>
+              Manage budgets →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Anomalies banner */}
       {anomaliesNow.length > 0 && (
         <div style={{
@@ -155,6 +240,18 @@ export default async function OverviewPage({
 
       {/* Area chart — client component for recharts */}
       <OverviewCharts series={series} burn={burn} />
+
+      {/* Budget burn-up chart — only when a global monthly budget exists */}
+      {burnUpBudget && burnUpData && (
+        <div style={{ marginTop: 16 }}>
+          <BurnUpChart
+            data={burnUpData}
+            budget={burnUpBudget.amount}
+            budgetName={burnUpBudget.name}
+            projected={burnUpProjected}
+          />
+        </div>
+      )}
 
       {/* Bottom row: Top devs + Provider mix */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, marginBottom: 16 }}>
