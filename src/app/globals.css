@@ -87,22 +87,22 @@ button { font-family: inherit; }
   font-style: italic;
 }
 
-/* Recharts overrides */
+/* Recharts overrides — always dark tooltip regardless of theme */
 .recharts-default-tooltip {
-  background: var(--ink) !important;
-  border: none !important;
+  background: #1C1A18 !important;
+  border: 1px solid #3D3937 !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
   font-family: "Geist", sans-serif !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.18) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.28) !important;
 }
 .recharts-tooltip-label {
-  color: rgba(255,255,255,0.6) !important;
+  color: rgba(255,255,255,0.5) !important;
   font-size: 11px !important;
   font-weight: 500 !important;
   margin-bottom: 4px !important;
 }
-.recharts-tooltip-item { color: #FFF !important; font-size: 12px !important; }
+.recharts-tooltip-item { color: #FAFAF9 !important; font-size: 12px !important; }
 .recharts-cartesian-axis-tick-value {
   font-family: "Geist", sans-serif !important;
   font-size: 11px !important;
