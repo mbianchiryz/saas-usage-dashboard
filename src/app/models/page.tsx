@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
-import { Card } from "@/components/Card";
+import { Panel, PageHeader, SectionTitle, Pill, ProviderTag, Th, Td, PROVIDER_HEX } from "@/components/ui";
 import { fmtUSD, fmtNum } from "@/lib/format";
 
 interface ModelRow {
@@ -11,8 +11,6 @@ interface ModelRow {
   input_tokens: number;
   output_tokens: number;
 }
-
-const COLORS = { anthropic: "#D97757", openai: "#10A37F" };
 
 export default function ModelsPage() {
   const [rows, setRows] = useState<ModelRow[]>([]);
@@ -24,67 +22,58 @@ export default function ModelsPage() {
   const total = rows.reduce((s, r) => s + r.cost, 0);
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">By Model</h1>
-        <p className="text-sm text-neutral-400">MTD spend breakdown across models</p>
-      </div>
+    <div>
+      <PageHeader
+        title="By model"
+        subtitle={`${rows.length} models in use · month-to-date`}
+        right={<Pill tone="neutral">${Math.round(total).toLocaleString()} total</Pill>}
+      />
 
-      <Card className="mb-6">
-        <h2 className="mb-4 text-base font-medium">Cost per model</h2>
-        <div className="h-80 w-full">
+      <Panel style={{ marginBottom: 16 }}>
+        <SectionTitle sub="Bars colored by provider">Cost per model</SectionTitle>
+        <div style={{ height: 280 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rows} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="#262626" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="model" stroke="#6b7280" fontSize={11} />
-              <YAxis stroke="#6b7280" fontSize={11} tickFormatter={(v) => fmtUSD(v, { compact: true })} />
-              <Tooltip
-                contentStyle={{ background: "#171717", border: "1px solid #262626", borderRadius: 6 }}
-                formatter={(v: number) => fmtUSD(v)}
-              />
-              <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
-                {rows.map((r, i) => <Cell key={i} fill={COLORS[r.provider]} />)}
+            <BarChart data={rows} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
+              <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="model" tickLine={false} axisLine={false} />
+              <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => fmtUSD(v, { compact: true })} />
+              <Tooltip formatter={(v: number) => fmtUSD(v)} />
+              <Bar dataKey="cost" radius={[6, 6, 0, 0]}>
+                {rows.map((r, i) => <Cell key={i} fill={PROVIDER_HEX[r.provider]} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </Card>
+      </Panel>
 
-      <Card>
-        <table className="w-full text-sm">
+      <Panel padding={0} style={{ overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr className="border-b border-neutral-800 text-left text-xs uppercase tracking-wide text-neutral-400">
-              <th className="py-3 pr-4">Model</th>
-              <th className="py-3 pr-4">Provider</th>
-              <th className="py-3 pr-4 text-right">Input tokens</th>
-              <th className="py-3 pr-4 text-right">Output tokens</th>
-              <th className="py-3 pr-4 text-right">Cost</th>
-              <th className="py-3 pr-4 text-right">% of total</th>
+            <tr>
+              <Th>Model</Th>
+              <Th>Provider</Th>
+              <Th align="right">Input tokens</Th>
+              <Th align="right">Output tokens</Th>
+              <Th align="right">Cost</Th>
+              <Th align="right">% of total</Th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.model} className="border-b border-neutral-900 last:border-0">
-                <td className="py-3 pr-4 font-mono text-xs">{r.model}</td>
-                <td className="py-3 pr-4">
-                  <span
-                    className="inline-block rounded px-2 py-0.5 text-xs"
-                    style={{ background: `${COLORS[r.provider]}22`, color: COLORS[r.provider] }}
-                  >
-                    {r.provider}
-                  </span>
-                </td>
-                <td className="py-3 pr-4 text-right tabular-nums text-neutral-400">{fmtNum(r.input_tokens)}</td>
-                <td className="py-3 pr-4 text-right tabular-nums text-neutral-400">{fmtNum(r.output_tokens)}</td>
-                <td className="py-3 pr-4 text-right tabular-nums font-medium">{fmtUSD(r.cost)}</td>
-                <td className="py-3 pr-4 text-right tabular-nums text-neutral-400">
+              <tr key={r.model}>
+                <Td mono style={{ color: "var(--ink)" }}>{r.model}</Td>
+                <Td><ProviderTag provider={r.provider} /></Td>
+                <Td align="right" mono style={{ color: "var(--ink-3)" }}>{fmtNum(r.input_tokens)}</Td>
+                <Td align="right" mono style={{ color: "var(--ink-3)" }}>{fmtNum(r.output_tokens)}</Td>
+                <Td align="right" mono style={{ fontWeight: 600, color: "var(--ink)" }}>{fmtUSD(r.cost)}</Td>
+                <Td align="right" mono style={{ color: "var(--ink-3)" }}>
                   {((r.cost / total) * 100).toFixed(1)}%
-                </td>
+                </Td>
               </tr>
             ))}
           </tbody>
         </table>
-      </Card>
+      </Panel>
     </div>
   );
 }

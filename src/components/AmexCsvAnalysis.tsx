@@ -1,18 +1,12 @@
 "use client";
 import { useState, useMemo } from "react";
 import type { ParseResult, AmexRow } from "@/lib/amex-parser";
-import { Card } from "@/components/Card";
+import { Panel, SectionTitle, Metric, ProviderTag, Th, Td, Pill, PROVIDER_HEX } from "@/components/ui";
 import { fmtUSD } from "@/lib/format";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Legend,
 } from "recharts";
-import clsx from "clsx";
-
-const PROVIDER_COLOR: Record<string, string> = {
-  anthropic: "#D97757",
-  openai:    "#10A37F",
-};
 
 type CompareMode = "mom" | "pop";
 
@@ -62,45 +56,18 @@ function daysWithData(rows: AmexRow[], ym: string): number {
   return Math.max(days.size, 1);
 }
 
-interface DeltaBadgeProps {
-  current: number;
-  prev: number;
-}
-function DeltaBadge({ current, prev }: DeltaBadgeProps) {
+function DeltaBadge({ current, prev }: { current: number; prev: number }) {
   if (prev === 0) return null;
   const delta = current - prev;
   const pct   = (delta / prev) * 100;
   const up    = delta > 0;
   return (
-    <span className={clsx("text-xs font-medium", up ? "text-red-400" : "text-green-400")}>
+    <span style={{
+      fontSize: 12, fontWeight: 500,
+      color: up ? "var(--danger)" : "var(--accent)",
+    }}>
       {up ? "▲" : "▼"} {fmtUSD(Math.abs(delta))} ({Math.abs(pct).toFixed(1)}%)
     </span>
-  );
-}
-
-interface StatCardWithDeltaProps {
-  label: string;
-  value: string;
-  sub?: React.ReactNode;
-  delta?: React.ReactNode;
-  accent?: "anthropic" | "openai" | "neutral";
-}
-function StatCardWithDelta({ label, value, sub, delta, accent }: StatCardWithDeltaProps) {
-  const bar = {
-    anthropic: "bg-brand-anthropic",
-    openai:    "bg-brand-openai",
-    neutral:   "bg-neutral-600",
-  }[accent ?? "neutral"];
-  return (
-    <div className="relative overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900/50 p-5">
-      <div className={clsx("absolute left-0 top-0 h-full w-1", bar)} />
-      <div className="pl-2">
-        <div className="text-xs uppercase tracking-wide text-neutral-400">{label}</div>
-        <div className="mt-1 text-3xl font-semibold">{value}</div>
-        {delta && <div className="mt-1">{delta}</div>}
-        {sub   && <div className="mt-1 text-xs text-neutral-500">{sub}</div>}
-      </div>
-    </div>
   );
 }
 
@@ -122,24 +89,20 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
     [allMatched, selectedMonth],
   );
 
-  // Previous month rows (only relevant when a specific month is selected)
-  const prev    = useMemo(() => prevMonth(selectedMonth), [selectedMonth]);
+  const prev     = useMemo(() => prevMonth(selectedMonth), [selectedMonth]);
   const prevRows = useMemo(
     () => selectedMonth === "all" ? [] : allMatched.filter((r) => r.date.startsWith(prev)),
     [allMatched, prev, selectedMonth],
   );
 
-  // Current month totals
   const anthropicTotal = matched.filter((r) => r.provider === "anthropic").reduce((s, r) => s + r.amount, 0);
   const openaiTotal    = matched.filter((r) => r.provider === "openai").reduce((s, r) => s + r.amount, 0);
   const grandTotal     = anthropicTotal + openaiTotal;
 
-  // Previous month totals — adjusted for comparison mode
   const prevAnthropicRaw = prevRows.filter((r) => r.provider === "anthropic").reduce((s, r) => s + r.amount, 0);
   const prevOpenaiRaw    = prevRows.filter((r) => r.provider === "openai").reduce((s, r) => s + r.amount, 0);
   const prevTotalRaw     = prevAnthropicRaw + prevOpenaiRaw;
 
-  // PoP: normalize prev month to same number of days as current month has data
   const currentDays = selectedMonth !== "all" ? daysWithData(allMatched, selectedMonth) : 1;
   const prevDays    = selectedMonth !== "all" ? daysInMonth(prev) : 1;
   const popFactor   = prevDays > 0 ? currentDays / prevDays : 1;
@@ -157,18 +120,31 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
 
   const series = dailySeries(matched);
 
+  /* ── shared select/button styles ── */
+  const selectStyle: React.CSSProperties = {
+    borderRadius: "var(--r-sm)", border: "1px solid var(--line)",
+    background: "var(--panel)", color: "var(--ink)",
+    padding: "5px 10px", fontSize: 13, outline: "none",
+  };
+
+  const toggleBase: React.CSSProperties = {
+    borderRadius: "var(--r-sm)", padding: "4px 10px",
+    fontSize: 12, fontWeight: 500, cursor: "pointer",
+    border: "none", transition: "background .15s, color .15s",
+  };
+
   return (
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* Controls row */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
         {/* Month selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-neutral-400">Month</label>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <label style={{ fontSize: 13, color: "var(--ink-3)" }}>Month</label>
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-white focus:border-neutral-500 focus:outline-none"
+            style={selectStyle}
           >
             <option value="all">All months</option>
             {availableMonths.map((m) => (
@@ -176,135 +152,139 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
             ))}
           </select>
           {selectedMonth !== "all" && (
-            <button onClick={() => setSelectedMonth("all")} className="text-xs text-neutral-500 hover:text-white transition">
+            <button
+              onClick={() => setSelectedMonth("all")}
+              style={{ ...toggleBase, background: "transparent", color: "var(--ink-4)", fontSize: 12 }}
+            >
               Clear
             </button>
           )}
         </div>
 
-        {/* MoM / PoP toggle — only when a month is selected */}
+        {/* MoM / PoP toggle */}
         {selectedMonth !== "all" && (
-          <div className="flex items-center gap-1 rounded-md border border-neutral-700 bg-neutral-900 p-0.5">
-            <button
-              onClick={() => setCompareMode("mom")}
-              className={clsx(
-                "rounded px-3 py-1 text-xs font-medium transition",
-                compareMode === "mom" ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white",
-              )}
-            >
-              MoM
-            </button>
-            <button
-              onClick={() => setCompareMode("pop")}
-              className={clsx(
-                "rounded px-3 py-1 text-xs font-medium transition",
-                compareMode === "pop" ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white",
-              )}
-            >
-              PoP
-            </button>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 2,
+            border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
+            background: "var(--panel-2)", padding: 2,
+          }}>
+            {(["mom", "pop"] as CompareMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setCompareMode(mode)}
+                style={{
+                  ...toggleBase,
+                  background: compareMode === mode ? "var(--panel)" : "transparent",
+                  color: compareMode === mode ? "var(--ink)" : "var(--ink-4)",
+                  boxShadow: compareMode === mode ? "0 1px 2px rgba(0,0,0,.06)" : "none",
+                }}
+              >
+                {mode.toUpperCase()}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Mode explanation */}
+        {/* Mode hint */}
         {selectedMonth !== "all" && (
-          <span className="text-xs text-neutral-500">
+          <span style={{ fontSize: 12, color: "var(--ink-4)" }}>
             {compareMode === "mom"
               ? "Comparing full months"
-              : `Comparing ${currentDays} days of each month (pace-normalized)`}
+              : `Pace-normalized · ${currentDays} days`}
           </span>
         )}
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCardWithDelta
-          label={selectedMonth === "all" ? "Total matched" : `Total · ${monthLabel(selectedMonth)}`}
-          value={fmtUSD(grandTotal)}
-          delta={showDelta ? <DeltaBadge current={grandTotal} prev={prevTotal} /> : undefined}
-          sub={<>{matched.length} transactions · {prevLabel}</>}
-          accent="neutral"
-        />
-        <StatCardWithDelta
-          label="Anthropic"
-          value={fmtUSD(anthropicTotal)}
-          delta={showDelta ? <DeltaBadge current={anthropicTotal} prev={prevAnthropic} /> : undefined}
-          sub={<>{matched.filter((r) => r.provider === "anthropic").length} transactions</>}
-          accent="anthropic"
-        />
-        <StatCardWithDelta
-          label="OpenAI"
-          value={fmtUSD(openaiTotal)}
-          delta={showDelta ? <DeltaBadge current={openaiTotal} prev={prevOpenai} /> : undefined}
-          sub={<>{matched.filter((r) => r.provider === "openai").length} transactions</>}
-          accent="openai"
-        />
+      {/* Summary metrics */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+        <Panel>
+          <Metric
+            label={selectedMonth === "all" ? "Total matched" : `Total · ${monthLabel(selectedMonth)}`}
+            value={fmtUSD(grandTotal)}
+            sub={`${matched.length} transactions${prevLabel ? ` · ${prevLabel}` : ""}`}
+            delta={showDelta ? undefined : undefined}
+          />
+          {showDelta && <div style={{ marginTop: 6 }}><DeltaBadge current={grandTotal} prev={prevTotal} /></div>}
+        </Panel>
+        <Panel>
+          <Metric
+            label="Anthropic"
+            value={fmtUSD(anthropicTotal)}
+            sub={`${matched.filter((r) => r.provider === "anthropic").length} transactions`}
+          />
+          {showDelta && <div style={{ marginTop: 6 }}><DeltaBadge current={anthropicTotal} prev={prevAnthropic} /></div>}
+        </Panel>
+        <Panel>
+          <Metric
+            label="OpenAI"
+            value={fmtUSD(openaiTotal)}
+            sub={`${matched.filter((r) => r.provider === "openai").length} transactions`}
+          />
+          {showDelta && <div style={{ marginTop: 6 }}><DeltaBadge current={openaiTotal} prev={prevOpenai} /></div>}
+        </Panel>
       </div>
 
       {/* Daily burn chart */}
       {series.length > 1 && (
-        <Card>
-          <h3 className="mb-4 text-base font-medium">Daily burn</h3>
-          <div className="h-64 w-full">
+        <Panel>
+          <SectionTitle sub="Daily charges by provider">Burn chart</SectionTitle>
+          <div style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="#262626" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" stroke="#6b7280" fontSize={11} />
-                <YAxis stroke="#6b7280" fontSize={11} tickFormatter={(v) => `$${v}`} />
+              <LineChart data={series} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
+                <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} style={{ fontSize: 11, fill: "var(--ink-4)" }} />
+                <YAxis tickLine={false} axisLine={false} style={{ fontSize: 11, fill: "var(--ink-4)" }} tickFormatter={(v) => `$${v}`} />
                 <Tooltip
-                  contentStyle={{ background: "#171717", border: "1px solid #262626", borderRadius: 6 }}
-                  labelStyle={{ color: "#a3a3a3" }}
                   formatter={(v: number, n: string) => [fmtUSD(v), n]}
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="anthropic" name="Anthropic" stroke="#D97757" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                <Line type="monotone" dataKey="openai"    name="OpenAI"    stroke="#10A37F" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-3)" }} />
+                <Line type="monotone" dataKey="anthropic" name="Anthropic" stroke={PROVIDER_HEX.anthropic} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                <Line type="monotone" dataKey="openai"    name="OpenAI"    stroke={PROVIDER_HEX.openai}    strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </Panel>
       )}
 
       {/* Matched charges table */}
-      {matched.length > 0 && (
-        <Card>
-          <h3 className="mb-4 text-base font-medium">Matched charges</h3>
-          <table className="w-full text-sm">
+      {matched.length > 0 ? (
+        <Panel padding={0} style={{ overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
+            <SectionTitle sub="Anthropic & OpenAI charges only">Matched charges</SectionTitle>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr className="border-b border-neutral-800 text-left text-xs uppercase tracking-wide text-neutral-400">
-                <th className="py-3 pr-4">Date</th>
-                <th className="py-3 pr-4">Description</th>
-                <th className="py-3 pr-4">Provider</th>
-                <th className="py-3 text-right">Amount</th>
+              <tr>
+                <Th>Date</Th>
+                <Th>Description</Th>
+                <Th>Provider</Th>
+                <Th align="right">Amount</Th>
               </tr>
             </thead>
             <tbody>
               {matched.map((r, i) => (
-                <tr key={i} className="border-b border-neutral-900 last:border-0">
-                  <td className="py-3 pr-4 font-mono text-xs text-neutral-400">{r.date}</td>
-                  <td className="py-3 pr-4">{r.description}</td>
-                  <td className="py-3 pr-4">
-                    <span
-                      className="inline-block rounded px-2 py-0.5 text-xs capitalize"
-                      style={{ background: `${PROVIDER_COLOR[r.provider!]}22`, color: PROVIDER_COLOR[r.provider!] }}
-                    >
-                      {r.provider}
-                    </span>
-                  </td>
-                  <td className="py-3 text-right tabular-nums font-medium">{fmtUSD(r.amount)}</td>
+                <tr key={i}>
+                  <Td mono style={{ color: "var(--ink-4)" }}>{r.date}</Td>
+                  <Td style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {r.description}
+                  </Td>
+                  <Td>
+                    <ProviderTag provider={r.provider as "anthropic" | "openai"} />
+                  </Td>
+                  <Td align="right" mono style={{ fontWeight: 600, color: "var(--ink)" }}>
+                    {fmtUSD(r.amount)}
+                  </Td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </Card>
-      )}
-
-      {matched.length === 0 && (
-        <Card>
-          <p className="text-sm text-neutral-400">
+        </Panel>
+      ) : (
+        <Panel>
+          <p style={{ fontSize: 13, color: "var(--ink-4)" }}>
             No charges found for {selectedMonth === "all" ? "this file" : monthLabel(selectedMonth)}.
           </p>
-        </Card>
+        </Panel>
       )}
     </div>
   );

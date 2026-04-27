@@ -3,15 +3,88 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --card: #121212;
-  --border: #262626;
-  --muted: #9ca3af;
+  /* Surfaces */
+  --bg:          #FAFAF9;
+  --panel:       #FFFFFF;
+  --panel-2:     #F5F5F4;
+  --hover:       #F5F5F4;
+  /* Ink */
+  --ink:         #0C0A09;
+  --ink-2:       #292524;
+  --ink-3:       #57534E;
+  --ink-4:       #A8A29E;
+  /* Lines */
+  --line:        #E7E5E4;
+  --line-2:      #D6D3D1;
+  /* Accents */
+  --accent:      #047857;
+  --accent-2:    #10B981;
+  --accent-soft: #ECFDF5;
+  --warn:        #B45309;
+  --warn-soft:   #FEF3C7;
+  --danger:      #B91C1C;
+  --danger-soft: #FEE2E2;
+  /* Providers */
+  --p-anthropic:      #7C3AED;
+  --p-anthropic-soft: #F3E8FF;
+  --p-openai:         #0F766E;
+  --p-openai-soft:    #CCFBF1;
+  /* Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
 }
 
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Geist", "Inter", -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "cv11";
 }
+
+button { font-family: inherit; }
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.mono {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.serif {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-style: italic;
+}
+
+/* Recharts overrides */
+.recharts-default-tooltip {
+  background: var(--ink) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-family: "Geist", sans-serif !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18) !important;
+}
+.recharts-tooltip-label {
+  color: rgba(255,255,255,0.6) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  margin-bottom: 4px !important;
+}
+.recharts-tooltip-item { color: #FFF !important; font-size: 12px !important; }
+.recharts-cartesian-axis-tick-value {
+  font-family: "Geist", sans-serif !important;
+  font-size: 11px !important;
+  fill: var(--ink-4) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; }
+::-webkit-scrollbar-track { background: transparent; }

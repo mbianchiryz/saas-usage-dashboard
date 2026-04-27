@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 import { AmexCsvUploader } from "@/components/AmexCsvUploader";
 import { AmexCsvAnalysis } from "@/components/AmexCsvAnalysis";
 import { parseAmexCsv, type ParseResult } from "@/lib/amex-parser";
-import { Clock, Cloud, CloudOff } from "lucide-react";
+import { Cloud, CloudOff, Clock } from "lucide-react";
 
-const SHARED_KEY = "amex_csv";
+const SHARED_KEY  = "amex_csv";
 const LS_KEY_CSV  = "amex_csv_text";
 const LS_KEY_NAME = "amex_csv_filename";
 
@@ -13,15 +13,14 @@ type SyncState = "idle" | "saving" | "saved" | "error";
 
 export function AmexClientSection() {
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
-  const [fileName, setFileName]       = useState<string | undefined>();
-  const [syncState, setSyncState]     = useState<SyncState>("idle");
-  const [lastSaved, setLastSaved]     = useState<string | null>(null);
+  const [fileName,    setFileName]    = useState<string | undefined>();
+  const [syncState,   setSyncState]   = useState<SyncState>("idle");
+  const [lastSaved,   setLastSaved]   = useState<string | null>(null);
 
-  // On mount: try Supabase first, fallback to localStorage
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`/api/shared?key=${SHARED_KEY}`);
+        const res  = await fetch(`/api/shared?key=${SHARED_KEY}`);
         const json = await res.json();
         if (json.data?.csvText && json.data?.fileName) {
           const result = parseAmexCsv(json.data.csvText);
@@ -29,97 +28,78 @@ export function AmexClientSection() {
             setParseResult(result);
             setFileName(json.data.fileName);
             setLastSaved(json.data.updated_at ?? null);
-            // Keep localStorage in sync
             localStorage.setItem(LS_KEY_CSV,  json.data.csvText);
             localStorage.setItem(LS_KEY_NAME, json.data.fileName);
             return;
           }
         }
-      } catch { /* network error — fall through to localStorage */ }
-
-      // Fallback: localStorage
+      } catch { /* fallback */ }
       const saved     = localStorage.getItem(LS_KEY_CSV);
       const savedName = localStorage.getItem(LS_KEY_NAME);
       if (saved && savedName) {
         const result = parseAmexCsv(saved);
-        if (result.rows.length > 0) {
-          setParseResult(result);
-          setFileName(savedName);
-        }
+        if (result.rows.length > 0) { setParseResult(result); setFileName(savedName); }
       }
     }
     load();
   }, []);
 
   async function handleParsed(result: ParseResult, name: string, rawText: string) {
-    setParseResult(result);
-    setFileName(name);
-
-    // Save to localStorage immediately
-    localStorage.setItem(LS_KEY_CSV,  rawText);
-    localStorage.setItem(LS_KEY_NAME, name);
-
-    // Save to Supabase (shared)
+    setParseResult(result); setFileName(name);
+    localStorage.setItem(LS_KEY_CSV, rawText); localStorage.setItem(LS_KEY_NAME, name);
     setSyncState("saving");
     try {
       const res = await fetch("/api/shared", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ key: SHARED_KEY, value: { csvText: rawText, fileName: name, updated_at: new Date().toISOString() } }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: SHARED_KEY, value: { csvText: rawText, fileName: name, updated_at: new Date().toISOString() } }),
       });
-      if (res.ok) {
-        setSyncState("saved");
-        setLastSaved(new Date().toISOString());
-      } else {
-        setSyncState("error");
-      }
-    } catch {
-      setSyncState("error");
-    }
+      if (res.ok) { setSyncState("saved"); setLastSaved(new Date().toISOString()); }
+      else          setSyncState("error");
+    } catch { setSyncState("error"); }
   }
 
   async function handleClear() {
-    setParseResult(null);
-    setFileName(undefined);
-    setSyncState("idle");
-    setLastSaved(null);
-    localStorage.removeItem(LS_KEY_CSV);
-    localStorage.removeItem(LS_KEY_NAME);
-    // Clear from Supabase too
+    setParseResult(null); setFileName(undefined); setSyncState("idle"); setLastSaved(null);
+    localStorage.removeItem(LS_KEY_CSV); localStorage.removeItem(LS_KEY_NAME);
     await fetch("/api/shared", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ key: SHARED_KEY, value: {} }),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: SHARED_KEY, value: {} }),
     });
   }
 
   return (
-    <div className="space-y-6">
-      {/* Temporary notice */}
-      <div className="flex items-start gap-3 rounded-lg border border-yellow-800/50 bg-yellow-950/20 px-4 py-3 text-sm">
-        <Clock size={15} className="mt-0.5 shrink-0 text-yellow-500" />
-        <span className="text-yellow-300">
-          <span className="font-medium">Temporary:</span> CSV upload is a manual step until the Amex API integration is live.
-          Export from <span className="font-mono text-yellow-200">amex.com → Statement &amp; Activity → Download → CSV</span>.
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Temp notice */}
+      <div style={{
+        display: "flex", alignItems: "flex-start", gap: 10,
+        padding: "12px 16px", borderRadius: "var(--r-md)",
+        border: "1px solid #FDE68A", background: "#FFFBEB",
+        fontSize: 13, color: "#92400E",
+      }}>
+        <Clock size={14} style={{ marginTop: 1, flexShrink: 0, color: "#D97706" }} />
+        <span>
+          <strong>Temporary:</strong> CSV upload is a manual step until the Amex API integration is live.
+          Export from <span style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 12 }}>amex.com → Statement &amp; Activity → Download → CSV</span>.
         </span>
       </div>
 
       {/* Sync status */}
       {syncState === "saving" && (
-        <div className="flex items-center gap-2 text-xs text-neutral-400">
-          <Cloud size={13} className="animate-pulse" /> Saving to shared storage…
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-3)" }}>
+          <Cloud size={13} style={{ opacity: 0.6 }} /> Saving to shared storage…
         </div>
       )}
       {syncState === "saved" && lastSaved && (
-        <div className="flex items-center gap-2 text-xs text-green-500">
-          <Cloud size={13} /> Shared — teammates will see this CSV automatically.
-          <span className="text-neutral-500">
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--accent)" }}>
+          <Cloud size={13} />
+          Shared — teammates will see this CSV automatically.
+          <span style={{ color: "var(--ink-4)", marginLeft: 4 }}>
             Last updated {new Date(lastSaved).toLocaleString()}
           </span>
         </div>
       )}
       {syncState === "error" && (
-        <div className="flex items-center gap-2 text-xs text-red-400">
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--danger)" }}>
           <CloudOff size={13} /> Could not save to shared storage — data is only local.
         </div>
       )}

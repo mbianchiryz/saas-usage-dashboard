@@ -1,47 +1,79 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Cpu, CreditCard } from "lucide-react";
-import clsx from "clsx";
+import { Avatar } from "@/components/ui";
 
-const links = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/developers", label: "By Developer", icon: Users },
-  { href: "/models", label: "By Model", icon: Cpu },
-  { href: "/amex", label: "Amex Reconciliation", icon: CreditCard },
+const NAV = [
+  { href: "/",           label: "Overview" },
+  { href: "/developers", label: "Developers" },
+  { href: "/models",     label: "Models" },
+  { href: "/amex",       label: "Amex recon" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-neutral-800 bg-neutral-950 p-4">
-      <div className="mb-8 px-2">
-        <div className="text-lg font-semibold">SaaS Usage</div>
-        <div className="text-xs text-neutral-500">Dashboard</div>
+    <aside style={{
+      width: 220, flexShrink: 0,
+      background: "var(--panel)",
+      borderRight: "1px solid var(--line)",
+      display: "flex", flexDirection: "column",
+      padding: "20px 14px",
+    }}>
+      {/* Logo */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px 22px" }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 7,
+          background: "var(--ink)",
+          display: "grid", placeItems: "center",
+          color: "#FFF", fontWeight: 700, fontSize: 13, letterSpacing: "-0.02em",
+        }}>L</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.01em" }}>Ledger</div>
+          <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 1 }}>AI spend</div>
+        </div>
       </div>
-      <nav className="flex flex-col gap-1">
-        {links.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+
+      {/* Section label */}
+      <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--ink-4)", padding: "0 8px 8px" }}>
+        Workspace
+      </div>
+
+      {/* Nav links */}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {NAV.map((n) => {
+          const active = pathname === n.href;
           return (
-            <Link
-              key={href}
-              href={href}
-              className={clsx(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition",
-                active
-                  ? "bg-neutral-800 text-white"
-                  : "text-neutral-400 hover:bg-neutral-900 hover:text-white",
-              )}
-            >
-              <Icon size={16} />
-              {label}
+            <Link key={n.href} href={n.href} style={{ textDecoration: "none" }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "7px 10px", borderRadius: 7,
+                background: active ? "var(--ink)" : "transparent",
+                color: active ? "#FFF" : "var(--ink-2)",
+                fontSize: 13, fontWeight: 500,
+                cursor: "pointer", transition: "background 120ms",
+              }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: 999, flexShrink: 0,
+                  background: active ? "#FFF" : "var(--ink-4)",
+                  opacity: active ? 1 : 0.5,
+                }} />
+                {n.label}
+              </div>
             </Link>
           );
         })}
       </nav>
-      <div className="mt-auto px-2 text-xs text-neutral-600">
-        <div>Mock data · 90 days</div>
-        <div>Swap to Supabase when ready</div>
+
+      {/* Footer user */}
+      <div style={{ marginTop: "auto", padding: "12px 8px", borderTop: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Avatar name="M Bianchi" size={28} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: "var(--ink)" }}>M. Bianchi</div>
+            <div style={{ fontSize: 10, color: "var(--ink-4)" }}>Finance · Owner</div>
+          </div>
+        </div>
       </div>
     </aside>
   );
