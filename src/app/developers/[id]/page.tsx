@@ -106,7 +106,7 @@ export default async function DeveloperDetail({
               <span key={a.date}>
                 <strong style={{ color: "var(--ink-2)" }}>{a.date}</strong>
                 <span style={{ color: "var(--ink-4)" }}> · </span>
-                <span className="tnum">${Math.round(a.spend).toLocaleString()} ({a.zScore.toFixed(1)}σ)</span>
+                <span className="tnum">${Math.round(a.spend).toLocaleString()} <span style={{ color: "var(--ink-4)" }}>vs avg ${Math.round(a.mean).toLocaleString()}</span></span>
               </span>
             ))}
           </div>

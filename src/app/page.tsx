@@ -229,7 +229,7 @@ export default async function OverviewPage({
                   <span>{a.dev!.name}</span>
                   <span style={{ color: "var(--ink-4)" }}> · {a.date} · </span>
                   <span style={{ fontVariantNumeric: "tabular-nums" }}>
-                    ${Math.round(a.spend).toLocaleString()} ({a.zScore.toFixed(1)}σ)
+                    ${Math.round(a.spend).toLocaleString()} <span style={{ color: "var(--ink-4)" }}>vs avg ${Math.round(a.mean).toLocaleString()}</span>
                   </span>
                 </Link>
               ))}
