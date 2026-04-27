@@ -5,7 +5,7 @@ import { Panel, SectionTitle, Metric, ProviderTag, Th, Td, Pill, PROVIDER_HEX } 
 import { fmtUSD } from "@/lib/format";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Legend,
+  CartesianGrid, Legend, ReferenceLine,
 } from "recharts";
 
 type CompareMode = "mom" | "pop";
@@ -225,26 +225,55 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
       </div>
 
       {/* Daily burn chart */}
-      {series.length > 1 && (
-        <Panel>
-          <SectionTitle sub="Daily charges by provider">Burn chart</SectionTitle>
-          <div style={{ height: 240 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
-                <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} style={{ fontSize: 11, fill: "var(--ink-4)" }} />
-                <YAxis tickLine={false} axisLine={false} style={{ fontSize: 11, fill: "var(--ink-4)" }} tickFormatter={(v) => `$${v}`} />
-                <Tooltip
-                  formatter={(v: number, n: string) => [fmtUSD(v), n]}
-                />
-                <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-3)" }} />
-                <Line type="monotone" dataKey="anthropic" name="Anthropic" stroke={PROVIDER_HEX.anthropic} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-                <Line type="monotone" dataKey="openai"    name="OpenAI"    stroke={PROVIDER_HEX.openai}    strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
-      )}
+      {series.length > 1 && (() => {
+        const dailyAvg = grandTotal / series.length;
+        return (
+          <Panel>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+              <SectionTitle sub="Daily charges by provider">Burn chart</SectionTitle>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 11, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".05em", fontWeight: 500 }}>
+                  Avg / day
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)", fontVariantNumeric: "tabular-nums", marginTop: 2 }}>
+                  {fmtUSD(dailyAvg)}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
+                  over {series.length} days
+                </div>
+              </div>
+            </div>
+            <div style={{ height: 240 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={series} margin={{ top: 5, right: 10, left: -8, bottom: 0 }}>
+                  <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} style={{ fontSize: 11, fill: "var(--ink-4)" }} />
+                  <YAxis tickLine={false} axisLine={false} style={{ fontSize: 11, fill: "var(--ink-4)" }} tickFormatter={(v) => `$${v}`} />
+                  <Tooltip
+                    formatter={(v: number, n: string) => [fmtUSD(v), n]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12, color: "var(--ink-3)" }} />
+                  <ReferenceLine
+                    y={dailyAvg}
+                    stroke="var(--ink-3)"
+                    strokeDasharray="5 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: `Avg ${fmtUSD(dailyAvg)}`,
+                      position: "insideTopRight",
+                      fontSize: 11,
+                      fill: "var(--ink-3)",
+                      fontWeight: 500,
+                    }}
+                  />
+                  <Line type="monotone" dataKey="anthropic" name="Anthropic" stroke={PROVIDER_HEX.anthropic} strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="openai"    name="OpenAI"    stroke={PROVIDER_HEX.openai}    strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Panel>
+        );
+      })()}
 
       {/* Matched charges table */}
       {matched.length > 0 ? (
