@@ -49,13 +49,13 @@ export function Sidebar() {
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "7px 10px", borderRadius: 7,
                 background: active ? "var(--ink)" : "transparent",
-                color: active ? "#FFF" : "var(--ink-2)",
+                color: active ? "var(--bg)" : "var(--ink-2)",
                 fontSize: 13, fontWeight: 500,
                 cursor: "pointer", transition: "background 120ms",
               }}>
                 <span style={{
                   width: 5, height: 5, borderRadius: 999, flexShrink: 0,
-                  background: active ? "#FFF" : "var(--ink-4)",
+                  background: active ? "var(--bg)" : "var(--ink-4)",
                   opacity: active ? 1 : 0.5,
                 }} />
                 {n.label}

@@ -1,8 +1,8 @@
 import { ReactNode, CSSProperties } from "react";
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
-export const PROVIDER_HEX   = { anthropic: "#7C3AED", openai: "#0F766E" } as const;
-export const PROVIDER_SOFT  = { anthropic: "#F3E8FF", openai: "#CCFBF1" } as const;
+export const PROVIDER_HEX   = { anthropic: "#D97757", openai: "#0F766E" } as const;
+export const PROVIDER_SOFT  = { anthropic: "#FFF7ED", openai: "#CCFBF1" } as const;
 export const PROVIDER_LABEL = { anthropic: "Anthropic", openai: "OpenAI" } as const;
 
 // ─── Panel ──────────────────────────────────────────────────────────────────
