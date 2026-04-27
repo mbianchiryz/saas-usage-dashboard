@@ -7,7 +7,7 @@ const NAV = [
   { href: "/",           label: "Overview" },
   { href: "/developers", label: "Developers" },
   { href: "/models",     label: "Models" },
-  { href: "/amex",       label: "Amex recon" },
+  { href: "/amex",       label: "Amex Reconciliation" },
 ];
 
 export function Sidebar() {
