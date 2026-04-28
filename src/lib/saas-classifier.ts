@@ -27,6 +27,7 @@ export type SaasCategory =
   | "hiptrain"
   | "offsiteio"
   | "ntrvsta"
+  | "all"
   | "other";
 
 interface Rule {
@@ -164,5 +165,6 @@ export const CATEGORY_LABEL: Record<SaasCategory, string> = {
   hiptrain:   "Hiptrain",
   offsiteio:  "Offsiteio",
   ntrvsta:    "Ntrvsta",
+  all:        "All / Shared",
   other:      "Other",
 };

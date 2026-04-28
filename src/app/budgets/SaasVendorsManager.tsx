@@ -6,7 +6,7 @@ import { CATEGORY_LABEL, type SaasCategory } from "@/lib/saas-classifier";
 import { newVendorId, type SaasVendor } from "@/lib/saas-vendors";
 
 const CATEGORIES: SaasCategory[] = [
-  "sales", "recruiting", "accounting", "it", "video", "dev", "hiptrain", "offsiteio", "ntrvsta", "other",
+  "all", "sales", "recruiting", "accounting", "it", "video", "dev", "hiptrain", "offsiteio", "ntrvsta", "other",
 ];
 
 export function SaasVendorsManager() {
@@ -86,6 +86,95 @@ export function SaasVendorsManager() {
     display: "block", marginBottom: 5,
   };
 
+  const editorPanel = editing && (
+    <Panel>
+      <SectionTitle sub={vendors.some((v) => v.id === editing.id) ? "Edit vendor" : "Define a new vendor"}>
+        {vendors.some((v) => v.id === editing.id) ? "Edit vendor" : "New vendor"}
+      </SectionTitle>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginTop: 10 }}>
+        <div>
+          <label style={labelStyle}>Name</label>
+          <input style={inputStyle} placeholder="e.g. Adobe" value={editing.name}
+            onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+        </div>
+        <div>
+          <label style={labelStyle}>Category</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {CATEGORIES.map((c) => {
+              const active = editing.category === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setEditing({ ...editing, category: c })}
+                  style={{
+                    padding: "6px 14px",
+                    border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
+                    borderRadius: 999,
+                    background: active ? "var(--ink)" : "var(--panel-2)",
+                    color: active ? "var(--bg)" : "var(--ink-2)",
+                    fontSize: 12, fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "background .12s, color .12s, border-color .12s",
+                  }}
+                >
+                  {CATEGORY_LABEL[c]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={labelStyle}>
+            Match patterns (comma-separated; case-insensitive substrings or regex)
+          </label>
+          <input style={inputStyle} placeholder="e.g. adobe, creative cloud"
+            value={patternsString} onChange={(e) => setPatternsString(e.target.value)} />
+          <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>
+            Leave empty to rely on the built-in classifier. Patterns here are checked first
+            and override defaults.
+          </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Expected monthly cost (optional)</label>
+          <input style={inputStyle} type="number" min="0" step="1"
+            value={editing.expectedMonthly ?? ""}
+            onChange={(e) => setEditing({ ...editing, expectedMonthly: e.target.value ? Number(e.target.value) : undefined })} />
+        </div>
+
+        <div>
+          <label style={labelStyle}>Notes</label>
+          <input style={inputStyle} placeholder="e.g. shared seat, paid yearly"
+            value={editing.notes ?? ""}
+            onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
+        <button onClick={saveEditing} disabled={saving} style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "8px 14px", fontSize: 13, fontWeight: 500,
+          border: "none", borderRadius: "var(--r-sm)",
+          background: "var(--accent)", color: "#FFF", cursor: "pointer",
+          opacity: saving ? 0.6 : 1,
+        }}>
+          <Save size={13} /> {saving ? "Saving…" : "Save vendor"}
+        </button>
+        <button onClick={() => setEditing(null)} disabled={saving} style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "8px 14px", fontSize: 13, fontWeight: 500,
+          border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
+          background: "var(--panel-2)", color: "var(--ink-2)", cursor: "pointer",
+        }}>
+          <X size={13} /> Cancel
+        </button>
+      </div>
+    </Panel>
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {error && (
@@ -95,6 +184,8 @@ export function SaasVendorsManager() {
           fontSize: 13, borderRadius: "var(--r-md)",
         }}>{error}</div>
       )}
+
+      {editorPanel}
 
       <Panel padding={0} style={{ overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
@@ -167,95 +258,6 @@ export function SaasVendorsManager() {
           </table>
         )}
       </Panel>
-
-      {editing && (
-        <Panel>
-          <SectionTitle sub={vendors.some((v) => v.id === editing.id) ? "Edit vendor" : "Define a new vendor"}>
-            {vendors.some((v) => v.id === editing.id) ? "Edit vendor" : "New vendor"}
-          </SectionTitle>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginTop: 10 }}>
-            <div>
-              <label style={labelStyle}>Name</label>
-              <input style={inputStyle} placeholder="e.g. Adobe" value={editing.name}
-                onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
-            </div>
-            <div>
-              <label style={labelStyle}>Category</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {CATEGORIES.map((c) => {
-                  const active = editing.category === c;
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setEditing({ ...editing, category: c })}
-                      style={{
-                        padding: "6px 14px",
-                        border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
-                        borderRadius: 999,
-                        background: active ? "var(--ink)" : "var(--panel-2)",
-                        color: active ? "var(--bg)" : "var(--ink-2)",
-                        fontSize: 12, fontWeight: 500,
-                        cursor: "pointer",
-                        transition: "background .12s, color .12s, border-color .12s",
-                      }}
-                    >
-                      {CATEGORY_LABEL[c]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label style={labelStyle}>
-                Match patterns (comma-separated; case-insensitive substrings or regex)
-              </label>
-              <input style={inputStyle} placeholder="e.g. adobe, creative cloud"
-                value={patternsString} onChange={(e) => setPatternsString(e.target.value)} />
-              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>
-                Leave empty to rely on the built-in classifier. Patterns here are checked first
-                and override defaults.
-              </div>
-            </div>
-
-            <div>
-              <label style={labelStyle}>Expected monthly cost (optional)</label>
-              <input style={inputStyle} type="number" min="0" step="1"
-                value={editing.expectedMonthly ?? ""}
-                onChange={(e) => setEditing({ ...editing, expectedMonthly: e.target.value ? Number(e.target.value) : undefined })} />
-            </div>
-
-            <div>
-              <label style={labelStyle}>Notes</label>
-              <input style={inputStyle} placeholder="e.g. shared seat, paid yearly"
-                value={editing.notes ?? ""}
-                onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-            <button onClick={saveEditing} disabled={saving} style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "8px 14px", fontSize: 13, fontWeight: 500,
-              border: "none", borderRadius: "var(--r-sm)",
-              background: "var(--accent)", color: "#FFF", cursor: "pointer",
-              opacity: saving ? 0.6 : 1,
-            }}>
-              <Save size={13} /> {saving ? "Saving…" : "Save vendor"}
-            </button>
-            <button onClick={() => setEditing(null)} disabled={saving} style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "8px 14px", fontSize: 13, fontWeight: 500,
-              border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
-              background: "var(--panel-2)", color: "var(--ink-2)", cursor: "pointer",
-            }}>
-              <X size={13} /> Cancel
-            </button>
-          </div>
-        </Panel>
-      )}
     </div>
   );
 }
