@@ -35,23 +35,23 @@
   --r-lg: 14px;
 }
 
-/* ── Dark theme ── */
+/* ── Dark theme — neutral grays (Zinc) instead of warm browns (Stone) ── */
 [data-theme="dark"] {
-  --bg:          #0C0A09;
-  --panel:       #171513;
-  --panel-2:     #1C1A18;
-  --hover:       #211F1D;
-  --ink:         #FAFAF9;
-  --ink-2:       #E7E5E4;
-  --ink-3:       #A8A29E;
-  --ink-4:       #57534E;
-  --line:        #292524;
-  --line-2:      #3D3937;
+  --bg:          #09090B;
+  --panel:       #18181B;
+  --panel-2:     #1F1F23;
+  --hover:       #27272A;
+  --ink:         #FAFAFA;
+  --ink-2:       #E4E4E7;
+  --ink-3:       #A1A1AA;
+  --ink-4:       #52525B;
+  --line:        #27272A;
+  --line-2:      #3F3F46;
   --accent:      #10B981;
   --accent-2:    #34D399;
   --accent-soft: #052E16;
   --warn:        #FBBF24;
-  --warn-soft:   #451A03;
+  --warn-soft:   #422006;
   --danger:      #F87171;
   --danger-soft: #450A0A;
   --p-anthropic:      #FB923C;
@@ -89,8 +89,8 @@ button { font-family: inherit; }
 
 /* Recharts overrides — always dark tooltip regardless of theme */
 .recharts-default-tooltip {
-  background: #1C1A18 !important;
-  border: 1px solid #3D3937 !important;
+  background: #18181B !important;
+  border: 1px solid #3F3F46 !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
   font-family: "Geist", sans-serif !important;
