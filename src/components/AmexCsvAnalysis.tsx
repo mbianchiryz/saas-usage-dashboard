@@ -3,7 +3,6 @@ import { useState, useMemo } from "react";
 import type { ParseResult, AmexRow } from "@/lib/amex-parser";
 import { Panel, SectionTitle, Metric, ProviderTag, Th, Td, Pill, PROVIDER_HEX } from "@/components/ui";
 import { fmtUSD } from "@/lib/format";
-import { classifySaas, CATEGORY_LABEL, type SaasCategory } from "@/lib/saas-classifier";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, Legend, ReferenceLine,
@@ -74,42 +73,6 @@ function DeltaBadge({ current, prev }: { current: number; prev: number }) {
 
 export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
   const allMatched = useMemo(() => result.rows.filter((r) => r.provider !== null), [result]);
-
-  /* ── SaaS subscriptions: every non-Anthropic / non-OpenAI charge,
-        pivoted by canonical vendor name × month ── */
-  const saasPivot = useMemo(() => {
-    const nonAi = result.rows.filter((r) => r.provider === null);
-    if (nonAi.length === 0) return { months: [] as string[], rows: [] as Array<{
-      name: string; category: SaasCategory; byMonth: Record<string, number>; total: number;
-    }> };
-
-    const monthSet = new Set<string>();
-    /** name → { category, byMonth: { 'YYYY-MM' → total } } */
-    const groups = new Map<string, { name: string; category: SaasCategory; byMonth: Record<string, number>; total: number }>();
-
-    for (const r of nonAi) {
-      const month = r.date.slice(0, 7);
-      monthSet.add(month);
-      const cls = classifySaas(r.description);
-      const entry = groups.get(cls.name) ?? { name: cls.name, category: cls.category, byMonth: {}, total: 0 };
-      entry.byMonth[month] = (entry.byMonth[month] ?? 0) + r.amount;
-      entry.total += r.amount;
-      groups.set(cls.name, entry);
-    }
-
-    const months = Array.from(monthSet).sort(); // chronological
-    const rows = Array.from(groups.values()).sort((a, b) => b.total - a.total);
-    return { months, rows };
-  }, [result]);
-
-  const saasGrandTotal = useMemo(() => saasPivot.rows.reduce((s, r) => s + r.total, 0), [saasPivot]);
-  const saasMonthTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
-    for (const m of saasPivot.months) {
-      totals[m] = saasPivot.rows.reduce((s, r) => s + (r.byMonth[m] ?? 0), 0);
-    }
-    return totals;
-  }, [saasPivot]);
 
   const availableMonths = useMemo(() => {
     const months = new Set(allMatched.map((r) => r.date.slice(0, 7)));
@@ -353,79 +316,6 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
         </Panel>
       )}
 
-      {/* ─── SaaS subscriptions pivot ─────────────────────────────────────── */}
-      {saasPivot.rows.length > 0 && (
-        <Panel padding={0} style={{ overflow: "hidden" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "16px 20px", borderBottom: "1px solid var(--line)",
-          }}>
-            <SectionTitle sub="All non-AI charges grouped by vendor · monthly totals">
-              SaaS subscriptions
-            </SectionTitle>
-            <Pill tone="neutral" size="sm">
-              ${Math.round(saasGrandTotal).toLocaleString()} total
-            </Pill>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <Th>Vendor</Th>
-                  <Th>Category</Th>
-                  {saasPivot.months.map((m) => (
-                    <Th key={m} align="right" style={{ minWidth: 90 }}>
-                      {monthLabel(m).replace(/(\w+) (\d+)/, (_, mon: string, y: string) =>
-                        `${mon.slice(0, 3)} ${y.slice(2)}`)}
-                    </Th>
-                  ))}
-                  <Th align="right" style={{ minWidth: 110 }}>Total</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {saasPivot.rows.map((r) => (
-                  <tr key={r.name}>
-                    <Td style={{ fontWeight: 500, color: "var(--ink)" }}>
-                      {r.name}
-                    </Td>
-                    <Td>
-                      <Pill tone="neutral" size="sm">{CATEGORY_LABEL[r.category]}</Pill>
-                    </Td>
-                    {saasPivot.months.map((m) => {
-                      const v = r.byMonth[m];
-                      return (
-                        <Td key={m} align="right" mono style={{ color: v ? "var(--ink-2)" : "var(--ink-4)" }}>
-                          {v ? fmtUSD(v) : "—"}
-                        </Td>
-                      );
-                    })}
-                    <Td align="right" mono style={{ fontWeight: 600, color: "var(--ink)" }}>
-                      {fmtUSD(r.total)}
-                    </Td>
-                  </tr>
-                ))}
-
-                {/* Totals row */}
-                <tr style={{ background: "var(--panel-2)" }}>
-                  <Td style={{ fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", fontSize: 11, letterSpacing: ".04em" }}>
-                    Monthly total
-                  </Td>
-                  <Td>—</Td>
-                  {saasPivot.months.map((m) => (
-                    <Td key={m} align="right" mono style={{ fontWeight: 600, color: "var(--ink)" }}>
-                      {fmtUSD(saasMonthTotals[m] ?? 0)}
-                    </Td>
-                  ))}
-                  <Td align="right" mono style={{ fontWeight: 700, color: "var(--ink)" }}>
-                    {fmtUSD(saasGrandTotal)}
-                  </Td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </Panel>
-      )}
     </div>
   );
 }

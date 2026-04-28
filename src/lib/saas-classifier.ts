@@ -101,7 +101,33 @@ function cleanFallback(desc: string): string {
     .trim();
 }
 
-export function classifySaas(description: string): SaasMatch {
+export interface UserVendorRule {
+  name:     string;
+  category: SaasCategory;
+  patterns: string[]; // substrings or regex sources, matched case-insensitive
+}
+
+function userPatternsToRegex(p: string): RegExp {
+  // Treat as regex if it contains regex metacharacters; otherwise as a literal substring
+  const isRegex = /[.*+?^${}()|[\]\\]/.test(p);
+  try {
+    return new RegExp(isRegex ? p : p.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&"), "i");
+  } catch {
+    return new RegExp(p.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&"), "i");
+  }
+}
+
+export function classifySaas(description: string, userVendors: UserVendorRule[] = []): SaasMatch {
+  /* User-defined patterns take precedence */
+  for (const v of userVendors) {
+    for (const p of v.patterns) {
+      if (!p.trim()) continue;
+      if (userPatternsToRegex(p).test(description)) {
+        return { name: v.name, category: v.category };
+      }
+    }
+  }
+  /* Built-in rules */
   for (const rule of RULES) {
     if (rule.patterns.some((p) => p.test(description))) {
       return { name: rule.name, category: rule.category };
