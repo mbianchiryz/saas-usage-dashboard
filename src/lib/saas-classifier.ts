@@ -24,6 +24,9 @@ export type SaasCategory =
   | "it"
   | "video"
   | "dev"
+  | "hiptrain"
+  | "offsiteio"
+  | "ntrvsta"
   | "other";
 
 interface Rule {
@@ -34,13 +37,13 @@ interface Rule {
 
 const RULES: Rule[] = [
   // ── Recruiting ──
-  { name: "Ntrvsta",      category: "recruiting", patterns: [/ntrvsta/i, /intervista/i] },
+  { name: "Ntrvsta",      category: "ntrvsta",    patterns: [/ntrvsta/i, /intervista/i] },
   { name: "LinkedIn",     category: "recruiting", patterns: [/linkedin/i] },
   { name: "Greenhouse",   category: "recruiting", patterns: [/greenhouse/i] },
   { name: "Lever",        category: "recruiting", patterns: [/\blever\b/i] },
 
   // ── Sales ──
-  { name: "Hiptrain",     category: "sales",      patterns: [/hip\s*train/i, /hiptrain/i] },
+  { name: "Hiptrain",     category: "hiptrain",   patterns: [/hip\s*train/i, /hiptrain/i] },
   { name: "HubSpot",      category: "sales",      patterns: [/hubspot/i] },
   { name: "Salesforce",   category: "sales",      patterns: [/salesforce/i] },
   { name: "Apollo",       category: "sales",      patterns: [/apollo\.io/i] },
@@ -99,7 +102,7 @@ const RULES: Rule[] = [
   { name: "Perplexity",     category: "dev", patterns: [/perplexity/i] },
 
   // ── Other (team-building, misc) ──
-  { name: "Offsiteio",    category: "other", patterns: [/offsite\.io/i, /offsiteio/i, /offsite\s*io/i] },
+  { name: "Offsiteio",    category: "offsiteio", patterns: [/offsite\.io/i, /offsiteio/i, /offsite\s*io/i] },
   { name: "Spotify",      category: "other", patterns: [/spotify/i] },
   { name: "Netflix",      category: "other", patterns: [/netflix/i] },
   { name: "YouTube",      category: "other", patterns: [/youtube\s*premium/i, /\byoutube\b/i] },
@@ -158,5 +161,8 @@ export const CATEGORY_LABEL: Record<SaasCategory, string> = {
   it:         "IT",
   video:      "Social/Video",
   dev:        "Dev team",
+  hiptrain:   "Hiptrain",
+  offsiteio:  "Offsiteio",
+  ntrvsta:    "Ntrvsta",
   other:      "Other",
 };

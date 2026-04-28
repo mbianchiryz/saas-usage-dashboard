@@ -6,7 +6,7 @@ import { CATEGORY_LABEL, type SaasCategory } from "@/lib/saas-classifier";
 import { newVendorId, type SaasVendor } from "@/lib/saas-vendors";
 
 const CATEGORIES: SaasCategory[] = [
-  "sales", "recruiting", "accounting", "it", "video", "dev", "other",
+  "sales", "recruiting", "accounting", "it", "video", "dev", "hiptrain", "offsiteio", "ntrvsta", "other",
 ];
 
 export function SaasVendorsManager() {
