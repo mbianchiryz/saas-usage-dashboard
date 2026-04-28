@@ -156,7 +156,7 @@ export const CATEGORY_LABEL: Record<SaasCategory, string> = {
   recruiting: "Recruiting",
   accounting: "Accounting",
   it:         "IT",
-  video:      "Video",
+  video:      "Social/Video",
   dev:        "Dev team",
   other:      "Other",
 };
