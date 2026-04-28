@@ -12,9 +12,15 @@ const CATEGORIES: SaasCategory[] = [
 export function SaasVendorsManager() {
   const [vendors, setVendors] = useState<SaasVendor[]>([]);
   const [editing, setEditing] = useState<SaasVendor | null>(null);
+  const [patternsString, setPatternsString] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+
+  /* Sync the raw patterns string whenever we switch which vendor is being edited */
+  useEffect(() => {
+    setPatternsString(editing ? editing.patterns.join(", ") : "");
+  }, [editing?.id]);
 
   useEffect(() => {
     fetch("/api/saas-vendors")
@@ -53,8 +59,9 @@ export function SaasVendorsManager() {
   async function saveEditing() {
     if (!editing) return;
     if (!editing.name.trim()) { setError("Name is required."); return; }
-    /* Filter out empty pattern strings */
-    const clean: SaasVendor = { ...editing, patterns: editing.patterns.map((p) => p.trim()).filter(Boolean) };
+    /* Parse patterns from the raw input string at save time */
+    const parsedPatterns = patternsString.split(/[,\n]/).map((p) => p.trim()).filter(Boolean);
+    const clean: SaasVendor = { ...editing, patterns: parsedPatterns };
     const exists = vendors.some((v) => v.id === clean.id);
     const next   = exists ? vendors.map((v) => v.id === clean.id ? clean : v) : [...vendors, clean];
     await persist(next);
@@ -66,12 +73,8 @@ export function SaasVendorsManager() {
     await persist(vendors.filter((v) => v.id !== id));
   }
 
-  /* Patterns input: comma- or newline-separated string */
-  const patternsString = editing ? editing.patterns.join(", ") : "";
-  function setPatternsString(s: string) {
-    if (!editing) return;
-    setEditing({ ...editing, patterns: s.split(/[,\n]/).map((p) => p.trim()).filter(Boolean) });
-  }
+  /* Patterns input: keep the raw string in state so commas/spaces don't get
+     stripped while typing. Parse on save. */
 
   /* ── styles ── */
   const inputStyle: React.CSSProperties = {
