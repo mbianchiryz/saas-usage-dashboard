@@ -6,7 +6,7 @@ import { CATEGORY_LABEL, type SaasCategory } from "@/lib/saas-classifier";
 import { newVendorId, type SaasVendor } from "@/lib/saas-vendors";
 
 const CATEGORIES: SaasCategory[] = [
-  "ai", "cloud", "devtools", "design", "productivity", "comms", "media", "billing", "other",
+  "sales", "recruiting", "accounting", "it", "video", "dev", "other",
 ];
 
 export function SaasVendorsManager() {
@@ -182,10 +182,30 @@ export function SaasVendorsManager() {
             </div>
             <div>
               <label style={labelStyle}>Category</label>
-              <select style={inputStyle} value={editing.category}
-                onChange={(e) => setEditing({ ...editing, category: e.target.value as SaasCategory })}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
-              </select>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {CATEGORIES.map((c) => {
+                  const active = editing.category === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditing({ ...editing, category: c })}
+                      style={{
+                        padding: "6px 14px",
+                        border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
+                        borderRadius: 999,
+                        background: active ? "var(--ink)" : "var(--panel-2)",
+                        color: active ? "var(--bg)" : "var(--ink-2)",
+                        fontSize: 12, fontWeight: 500,
+                        cursor: "pointer",
+                        transition: "background .12s, color .12s, border-color .12s",
+                      }}
+                    >
+                      {CATEGORY_LABEL[c]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div style={{ gridColumn: "1 / -1" }}>

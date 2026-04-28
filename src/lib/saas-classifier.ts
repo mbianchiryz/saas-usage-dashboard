@@ -13,15 +13,17 @@ export interface SaasMatch {
   category: SaasCategory;
 }
 
+/**
+ * Categories are framed by *which team owns the spend*, not by what the software
+ * does. Finance/owners think in terms of cost centers, not product taxonomies.
+ */
 export type SaasCategory =
-  | "ai"
-  | "cloud"
-  | "devtools"
-  | "design"
-  | "productivity"
-  | "media"
-  | "comms"
-  | "billing"
+  | "sales"
+  | "recruiting"
+  | "accounting"
+  | "it"
+  | "video"
+  | "dev"
   | "other";
 
 interface Rule {
@@ -31,64 +33,77 @@ interface Rule {
 }
 
 const RULES: Rule[] = [
-  // ── AI / ML (besides Anthropic/OpenAI which have their own tab) ──
-  { name: "ElevenLabs",   category: "ai",       patterns: [/eleven\s*labs?/i, /elevenlabs/i] },
-  { name: "HeyGen",       category: "ai",       patterns: [/hey\s*gen/i, /heygen/i] },
-  { name: "Midjourney",   category: "ai",       patterns: [/midjourney/i] },
-  { name: "Runway",       category: "ai",       patterns: [/runway\s*ml/i, /runwayml/i] },
-  { name: "Perplexity",   category: "ai",       patterns: [/perplexity/i] },
-  { name: "Hugging Face", category: "ai",       patterns: [/hugging\s*face/i] },
-  { name: "Replicate",    category: "ai",       patterns: [/replicate\.com/i, /replicate\s*inc/i] },
-  { name: "Cursor",       category: "ai",       patterns: [/cursor\s*ai/i, /\bcursor\.com\b/i, /cursor\s*sh/i] },
-  { name: "GitHub Copilot", category: "ai",     patterns: [/copilot/i] },
+  // ── Recruiting ──
+  { name: "Ntrvsta",      category: "recruiting", patterns: [/ntrvsta/i, /intervista/i] },
+  { name: "LinkedIn",     category: "recruiting", patterns: [/linkedin/i] },
+  { name: "Greenhouse",   category: "recruiting", patterns: [/greenhouse/i] },
+  { name: "Lever",        category: "recruiting", patterns: [/\blever\b/i] },
 
-  // ── Cloud & infra ──
-  { name: "AWS",          category: "cloud",    patterns: [/amazon\s*web\s*services/i, /\baws\b/i] },
-  { name: "Google Cloud", category: "cloud",    patterns: [/google\s*cloud/i, /\bgcp\b/i, /google\s*\*?cloud/i] },
-  { name: "Azure",        category: "cloud",    patterns: [/microsoft\s*azure/i, /azure\s*cloud/i] },
-  { name: "Vercel",       category: "cloud",    patterns: [/vercel/i] },
-  { name: "Cloudflare",   category: "cloud",    patterns: [/cloudflare/i] },
-  { name: "Netlify",      category: "cloud",    patterns: [/netlify/i] },
-  { name: "Heroku",       category: "cloud",    patterns: [/heroku/i] },
-  { name: "DigitalOcean", category: "cloud",    patterns: [/digital\s*ocean/i, /digitalocean/i] },
-  { name: "Render",       category: "cloud",    patterns: [/render\.com/i] },
-  { name: "Supabase",     category: "cloud",    patterns: [/supabase/i] },
-  { name: "Fly.io",       category: "cloud",    patterns: [/\bfly\.io\b/i] },
+  // ── Sales ──
+  { name: "Hiptrain",     category: "sales",      patterns: [/hip\s*train/i, /hiptrain/i] },
+  { name: "HubSpot",      category: "sales",      patterns: [/hubspot/i] },
+  { name: "Salesforce",   category: "sales",      patterns: [/salesforce/i] },
+  { name: "Apollo",       category: "sales",      patterns: [/apollo\.io/i] },
 
-  // ── Dev tools ──
-  { name: "GitHub",       category: "devtools", patterns: [/github/i] },
-  { name: "GitLab",       category: "devtools", patterns: [/gitlab/i] },
-  { name: "Linear",       category: "devtools", patterns: [/linear\.app/i, /linear\s*pbc/i] },
-  { name: "Sentry",       category: "devtools", patterns: [/sentry/i] },
-  { name: "Datadog",      category: "devtools", patterns: [/datadog/i] },
-  { name: "PagerDuty",    category: "devtools", patterns: [/pagerduty/i] },
-  { name: "JetBrains",    category: "devtools", patterns: [/jetbrains/i] },
-  { name: "Postman",      category: "devtools", patterns: [/postman/i] },
+  // ── Accounting & billing ──
+  { name: "Stripe",       category: "accounting", patterns: [/stripe/i] },
+  { name: "QuickBooks",   category: "accounting", patterns: [/quickbooks/i, /quick\s*books/i] },
+  { name: "Xero",         category: "accounting", patterns: [/\bxero\b/i] },
+  { name: "Brex",         category: "accounting", patterns: [/\bbrex\b/i] },
+  { name: "Ramp",         category: "accounting", patterns: [/\bramp\.com\b/i] },
 
-  // ── Design ──
-  { name: "Adobe",        category: "design",   patterns: [/adobe/i, /\bcreative\s*cloud\b/i] },
-  { name: "Figma",        category: "design",   patterns: [/figma/i] },
-  { name: "Canva",        category: "design",   patterns: [/canva/i] },
-  { name: "Framer",       category: "design",   patterns: [/framer/i] },
+  // ── IT (cloud, infra, productivity, security, comms) ──
+  { name: "AWS",              category: "it", patterns: [/amazon\s*web\s*services/i, /\baws\b/i] },
+  { name: "Google Cloud",     category: "it", patterns: [/google\s*cloud/i, /\bgcp\b/i, /google\s*\*?cloud/i] },
+  { name: "Azure",            category: "it", patterns: [/microsoft\s*azure/i, /azure\s*cloud/i] },
+  { name: "Vercel",           category: "it", patterns: [/vercel/i] },
+  { name: "Cloudflare",       category: "it", patterns: [/cloudflare/i] },
+  { name: "Netlify",          category: "it", patterns: [/netlify/i] },
+  { name: "Heroku",           category: "it", patterns: [/heroku/i] },
+  { name: "DigitalOcean",     category: "it", patterns: [/digital\s*ocean/i, /digitalocean/i] },
+  { name: "Render",           category: "it", patterns: [/render\.com/i] },
+  { name: "Supabase",         category: "it", patterns: [/supabase/i] },
+  { name: "Fly.io",           category: "it", patterns: [/\bfly\.io\b/i] },
+  { name: "Slack",            category: "it", patterns: [/\bslack\b/i] },
+  { name: "Zoom",             category: "it", patterns: [/\bzoom\b/i, /zoom\.us/i] },
+  { name: "Notion",           category: "it", patterns: [/notion\s*labs/i, /\bnotion\.so\b/i, /\bnotion\b/i] },
+  { name: "Google Workspace", category: "it", patterns: [/google\s*\*?gsuite/i, /google\s*workspace/i, /google\s*g\s*suite/i] },
+  { name: "Microsoft 365",    category: "it", patterns: [/microsoft\s*365/i, /office\s*365/i, /msft\s*\*?\s*office/i] },
+  { name: "Dropbox",          category: "it", patterns: [/dropbox/i] },
+  { name: "1Password",        category: "it", patterns: [/1\s*password/i, /1password/i] },
+  { name: "LastPass",         category: "it", patterns: [/lastpass/i] },
 
-  // ── Productivity / collab ──
-  { name: "Notion",       category: "productivity", patterns: [/notion\s*labs/i, /\bnotion\.so\b/i, /\bnotion\b/i] },
-  { name: "Slack",        category: "comms",        patterns: [/\bslack\b/i] },
-  { name: "Zoom",         category: "comms",        patterns: [/\bzoom\b/i, /zoom\.us/i] },
-  { name: "Google Workspace", category: "productivity", patterns: [/google\s*\*?gsuite/i, /google\s*workspace/i, /google\s*g\s*suite/i] },
-  { name: "Microsoft 365", category: "productivity",   patterns: [/microsoft\s*365/i, /office\s*365/i, /msft\s*\*?\s*office/i] },
-  { name: "Dropbox",      category: "productivity", patterns: [/dropbox/i] },
-  { name: "1Password",    category: "productivity", patterns: [/1\s*password/i, /1password/i] },
-  { name: "LastPass",     category: "productivity", patterns: [/lastpass/i] },
+  // ── Video / creative ──
+  { name: "Adobe",        category: "video", patterns: [/adobe/i, /\bcreative\s*cloud\b/i] },
+  { name: "Figma",        category: "video", patterns: [/figma/i] },
+  { name: "Canva",        category: "video", patterns: [/canva/i] },
+  { name: "Framer",       category: "video", patterns: [/framer/i] },
+  { name: "ElevenLabs",   category: "video", patterns: [/eleven\s*labs?/i, /elevenlabs/i] },
+  { name: "HeyGen",       category: "video", patterns: [/hey\s*gen/i, /heygen/i] },
+  { name: "Midjourney",   category: "video", patterns: [/midjourney/i] },
+  { name: "Runway",       category: "video", patterns: [/runway\s*ml/i, /runwayml/i] },
 
-  // ── Media / streaming ──
-  { name: "Spotify",      category: "media",    patterns: [/spotify/i] },
-  { name: "Netflix",      category: "media",    patterns: [/netflix/i] },
-  { name: "YouTube",      category: "media",    patterns: [/youtube\s*premium/i, /\byoutube\b/i] },
-  { name: "Apple",        category: "media",    patterns: [/apple\.com\/bill/i, /apple\s*services/i] },
+  // ── Dev team ──
+  { name: "GitHub",         category: "dev", patterns: [/github/i] },
+  { name: "GitLab",         category: "dev", patterns: [/gitlab/i] },
+  { name: "Linear",         category: "dev", patterns: [/linear\.app/i, /linear\s*pbc/i] },
+  { name: "Sentry",         category: "dev", patterns: [/sentry/i] },
+  { name: "Datadog",        category: "dev", patterns: [/datadog/i] },
+  { name: "PagerDuty",      category: "dev", patterns: [/pagerduty/i] },
+  { name: "JetBrains",      category: "dev", patterns: [/jetbrains/i] },
+  { name: "Postman",        category: "dev", patterns: [/postman/i] },
+  { name: "Cursor",         category: "dev", patterns: [/cursor\s*ai/i, /\bcursor\.com\b/i, /cursor\s*sh/i] },
+  { name: "GitHub Copilot", category: "dev", patterns: [/copilot/i] },
+  { name: "Hugging Face",   category: "dev", patterns: [/hugging\s*face/i] },
+  { name: "Replicate",      category: "dev", patterns: [/replicate\.com/i, /replicate\s*inc/i] },
+  { name: "Perplexity",     category: "dev", patterns: [/perplexity/i] },
 
-  // ── Billing / payments ──
-  { name: "Stripe",       category: "billing",  patterns: [/stripe/i] },
+  // ── Other (team-building, misc) ──
+  { name: "Offsiteio",    category: "other", patterns: [/offsite\.io/i, /offsiteio/i, /offsite\s*io/i] },
+  { name: "Spotify",      category: "other", patterns: [/spotify/i] },
+  { name: "Netflix",      category: "other", patterns: [/netflix/i] },
+  { name: "YouTube",      category: "other", patterns: [/youtube\s*premium/i, /\byoutube\b/i] },
+  { name: "Apple",        category: "other", patterns: [/apple\.com\/bill/i, /apple\s*services/i] },
 ];
 
 /** Strip Amex noise (city/state, store numbers, asterisks) so unmatched rows still group sensibly. */
@@ -137,13 +152,11 @@ export function classifySaas(description: string, userVendors: UserVendorRule[] 
 }
 
 export const CATEGORY_LABEL: Record<SaasCategory, string> = {
-  ai:           "AI",
-  cloud:        "Cloud & infra",
-  devtools:     "Dev tools",
-  design:       "Design",
-  productivity: "Productivity",
-  media:        "Media",
-  comms:        "Communication",
-  billing:      "Billing",
-  other:        "Other",
+  sales:      "Sales",
+  recruiting: "Recruiting",
+  accounting: "Accounting",
+  it:         "IT",
+  video:      "Video",
+  dev:        "Dev team",
+  other:      "Other",
 };
