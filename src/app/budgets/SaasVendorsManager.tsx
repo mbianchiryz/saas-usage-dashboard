@@ -131,13 +131,14 @@ export function SaasVendorsManager() {
 
         <div style={{ gridColumn: "1 / -1" }}>
           <label style={labelStyle}>
-            Match patterns (comma-separated; case-insensitive substrings or regex)
+            Match patterns (comma-separated; case-insensitive substrings)
           </label>
-          <input style={inputStyle} placeholder="e.g. adobe, creative cloud"
+          <input style={inputStyle} placeholder="e.g. GOOGLE *WORKSPACE, google workspace"
             value={patternsString} onChange={(e) => setPatternsString(e.target.value)} />
           <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>
-            Leave empty to rely on the built-in classifier. Patterns here are checked first
-            and override defaults.
+            Each pattern is matched as a literal substring (so <code>*</code> matches a literal asterisk).
+            Wrap in slashes for a true regex, e.g. <code>/google\s*workspace/</code>.
+            Patterns here are checked first and override the built-in classifier.
           </div>
         </div>
 

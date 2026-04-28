@@ -127,13 +127,17 @@ export interface UserVendorRule {
 }
 
 function userPatternsToRegex(p: string): RegExp {
-  // Treat as regex if it contains regex metacharacters; otherwise as a literal substring
-  const isRegex = /[.*+?^${}()|[\]\\]/.test(p);
-  try {
-    return new RegExp(isRegex ? p : p.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&"), "i");
-  } catch {
-    return new RegExp(p.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&"), "i");
+  /* Power-user opt-in: wrap in /…/flags for true regex. Otherwise treat as a
+     case-insensitive literal substring — that way special chars like `*`
+     (common in Amex descriptions, e.g. "GOOGLE *WORKSPACE") match literally. */
+  const slashed = p.match(/^\/(.+)\/([a-z]*)$/i);
+  if (slashed) {
+    try {
+      const flags = slashed[2].includes("i") ? slashed[2] : slashed[2] + "i";
+      return new RegExp(slashed[1], flags);
+    } catch { /* fall through to literal */ }
   }
+  return new RegExp(p.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"), "i");
 }
 
 export function classifySaas(description: string, userVendors: UserVendorRule[] = []): SaasMatch {
