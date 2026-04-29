@@ -32,6 +32,8 @@ export function SaasView() {
   const [fileName,    setFileName]    = useState<string | null>(null);
   const [userVendors, setUserVendors] = useState<SaasVendor[]>([]);
   const [loading,     setLoading]     = useState(true);
+  const [search,      setSearch]      = useState("");
+  const [activeCat,   setActiveCat]   = useState<SaasCategory | "all">("all");
 
   /* Load vendors + Amex store (Supabase first, fall back to localStorage). */
   useEffect(() => {
@@ -153,9 +155,6 @@ export function SaasView() {
   }
 
   const { inCatalog, months, monthTotals, inCatalogTotal } = pivot;
-
-  const [search,          setSearch]          = useState("");
-  const [activeCat,       setActiveCat]       = useState<SaasCategory | "all">("all");
 
   const allCategories = useMemo(() => {
     const cats = new Set(inCatalog.map((r) => r.category));
