@@ -92,13 +92,11 @@ export function SaasView() {
 
   const pivot = useMemo(() => {
     if (!rows) return null;
-    const nonAi = rows.filter((r) => r.provider === null);
-
     const catalogNames = new Set(userVendors.map((v) => v.name));
     const monthSet     = new Set<string>();
     const groups       = new Map<string, PivotRow>();
 
-    for (const row of nonAi) {
+    for (const row of rows) {
       const ym = row.date.slice(0, 7);
       monthSet.add(ym);
       const cls = classifySaas(row.description, userVendors);
