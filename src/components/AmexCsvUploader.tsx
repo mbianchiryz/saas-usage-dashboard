@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
-import { Upload, FileText, X, Lock } from "lucide-react";
+import { Upload, FileText, X, Lock, PlusCircle } from "lucide-react";
 import { parseAmexCsv, type ParseResult } from "@/lib/amex-parser";
 
 interface Props {
@@ -84,17 +84,29 @@ export function AmexCsvUploader({ onParsed, onClear, hasData, fileName }: Props)
             <span style={{ fontWeight: 500, color: "var(--ink)" }}>{fileName}</span>
             <span style={{ color: "var(--ink-4)" }}>loaded</span>
           </div>
-          <button
-            onClick={handleClearClick}
-            style={{
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Hidden file input for add-more */}
+            <label style={{
               display: "flex", alignItems: "center", gap: 4,
-              border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
-              background: "transparent", color: "var(--ink-3)",
+              border: "1px solid var(--accent)", borderRadius: "var(--r-sm)",
+              background: "transparent", color: "var(--accent)",
               padding: "4px 10px", fontSize: 12, cursor: "pointer",
-            }}
-          >
-            <X size={12} /> Clear
-          </button>
+            }}>
+              <PlusCircle size={12} /> Add CSV
+              <input type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={onFileChange} />
+            </label>
+            <button
+              onClick={handleClearClick}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
+                background: "transparent", color: "var(--ink-3)",
+                padding: "4px 10px", fontSize: 12, cursor: "pointer",
+              }}
+            >
+              <X size={12} /> Clear
+            </button>
+          </div>
         </div>
 
         {/* PIN modal */}
