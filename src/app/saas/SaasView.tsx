@@ -353,11 +353,21 @@ function PivotTable({
               <tr key={r.name}>
                 <td style={tdCell}><span style={{ fontWeight: 500, color: "var(--ink)" }}>{r.name}</span></td>
                 <td style={tdCell}><Pill tone="neutral" size="sm">{CATEGORY_LABEL[r.category]}</Pill></td>
-                {months.map((m) => {
-                  const v = r.byMonth[m];
+                {months.map((m, mi) => {
+                  const v    = r.byMonth[m] ?? 0;
+                  const prev = mi > 0 ? (r.byMonth[months[mi - 1]] ?? 0) : null;
+                  const mom  = prev != null && prev > 0 ? ((v - prev) / prev) * 100 : null;
                   return (
                     <td key={m} style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", color: v ? "var(--ink-2)" : "var(--ink-4)" }}>
                       {v ? fmtUSD(v) : "—"}
+                      {mom != null && v > 0 && (
+                        <div style={{
+                          fontSize: 10, fontWeight: 500, marginTop: 2,
+                          color: mom > 0 ? "var(--danger)" : mom < 0 ? "var(--accent)" : "var(--ink-4)",
+                        }}>
+                          {mom > 0 ? "▲" : "▼"} {Math.abs(mom).toFixed(0)}%
+                        </div>
+                      )}
                     </td>
                   );
                 })}
@@ -393,11 +403,24 @@ function PivotTable({
               Monthly total
             </td>
             <td style={tdCell}>—</td>
-            {months.map((m) => (
-              <td key={m} style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 600, color: "var(--ink)" }}>
-                {fmtUSD(monthTotals[m] ?? 0)}
-              </td>
-            ))}
+            {months.map((m, mi) => {
+              const v    = monthTotals[m] ?? 0;
+              const prev = mi > 0 ? (monthTotals[months[mi - 1]] ?? 0) : null;
+              const mom  = prev != null && prev > 0 ? ((v - prev) / prev) * 100 : null;
+              return (
+                <td key={m} style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 600, color: "var(--ink)" }}>
+                  {fmtUSD(v)}
+                  {mom != null && v > 0 && (
+                    <div style={{
+                      fontSize: 10, fontWeight: 500, marginTop: 2,
+                      color: mom > 0 ? "var(--danger)" : mom < 0 ? "var(--accent)" : "var(--ink-4)",
+                    }}>
+                      {mom > 0 ? "▲" : "▼"} {Math.abs(mom).toFixed(0)}%
+                    </div>
+                  )}
+                </td>
+              );
+            })}
             <td style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 700, color: "var(--ink)" }}>
               {fmtUSD(grandTotal)}
             </td>
