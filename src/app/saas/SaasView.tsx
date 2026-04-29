@@ -33,7 +33,7 @@ export function SaasView() {
   const [userVendors, setUserVendors] = useState<SaasVendor[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [search,      setSearch]      = useState("");
-  const [activeCat,   setActiveCat]   = useState<SaasCategory | "all">("all");
+  const [activeCat,   setActiveCat]   = useState<SaasCategory | "__all__">("__all__");
 
   /* Load vendors + Amex store (Supabase first, fall back to localStorage). */
   useEffect(() => {
@@ -141,7 +141,7 @@ export function SaasView() {
     const q = search.trim().toLowerCase();
     return inCatalog.filter((r) => {
       const matchSearch = !q || r.name.toLowerCase().includes(q);
-      const matchCat    = activeCat === "all" || r.category === activeCat;
+      const matchCat    = activeCat === "__all__" || r.category === activeCat;
       return matchSearch && matchCat;
     });
   }, [inCatalog, search, activeCat]);
@@ -150,7 +150,7 @@ export function SaasView() {
   const filteredMonthTotals = Object.fromEntries(
     months.map((m) => [m, filtered.reduce((s, r) => s + (r.byMonth[m] ?? 0), 0)])
   );
-  const isFiltered = search.trim() !== "" || activeCat !== "all";
+  const isFiltered = search.trim() !== "" || activeCat !== "__all__";
 
   if (loading) {
     return (
@@ -220,21 +220,21 @@ export function SaasView() {
           {/* Category dropdown */}
           <select
             value={activeCat}
-            onChange={(e) => setActiveCat(e.target.value as SaasCategory | "all")}
+            onChange={(e) => setActiveCat(e.target.value as SaasCategory | "__all__")}
             style={{
               padding: "6px 10px", fontSize: 13,
               border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
               background: "var(--panel-2)", color: "var(--ink)", outline: "none", cursor: "pointer",
             }}
           >
-            <option value="all">All categories</option>
+            <option value="__all__">All categories</option>
             {allCategories.map((c) => (
               <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
             ))}
           </select>
 
           {isFiltered && (
-            <button onClick={() => { setSearch(""); setActiveCat("all"); }} style={{ fontSize: 12, color: "var(--ink-4)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            <button onClick={() => { setSearch(""); setActiveCat("__all__"); }} style={{ fontSize: 12, color: "var(--ink-4)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
               Clear filters
             </button>
           )}
