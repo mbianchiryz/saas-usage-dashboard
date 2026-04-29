@@ -189,9 +189,9 @@ export function SaasView() {
       />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
-        <Metric label="Total spend" value={`$${Math.round(inCatalogTotal).toLocaleString()}`} sub={`${months.length} month${months.length === 1 ? "" : "s"}`} />
-        <Metric label="Monthly avg" value={`$${months.length > 0 ? Math.round(inCatalogTotal / months.length).toLocaleString() : 0}`} sub="across catalog SaaS" />
-        <Metric label="Vendors"     value={`${inCatalog.length}`} sub="in catalog" />
+        <Metric label="Total spend" value={`$${Math.round(filteredTotal).toLocaleString()}`} sub={isFiltered ? `${filtered.length} vendor${filtered.length === 1 ? "" : "s"} filtered` : `${months.length} month${months.length === 1 ? "" : "s"}`} />
+        <Metric label="Monthly avg" value={`$${months.length > 0 ? Math.round(filteredTotal / months.length).toLocaleString() : 0}`} sub={isFiltered ? "filtered selection" : "across catalog SaaS"} />
+        <Metric label="Vendors"     value={`${filtered.length}`} sub={isFiltered ? `of ${inCatalog.length} total` : "in catalog"} />
       </div>
 
       <Panel padding={0} style={{ overflow: "hidden", marginBottom: 16 }}>
@@ -217,23 +217,21 @@ export function SaasView() {
             )}
           </div>
 
-          {/* Category pills */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {(["all", ...allCategories] as (SaasCategory | "all")[]).map((c) => {
-              const active = activeCat === c;
-              return (
-                <button key={c} onClick={() => setActiveCat(c)} style={{
-                  padding: "4px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer",
-                  borderRadius: 999, border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
-                  background: active ? "var(--ink)" : "var(--panel-2)",
-                  color:      active ? "var(--bg)"  : "var(--ink-3)",
-                  transition: "background .12s, color .12s",
-                }}>
-                  {c === "all" ? "All" : CATEGORY_LABEL[c]}
-                </button>
-              );
-            })}
-          </div>
+          {/* Category dropdown */}
+          <select
+            value={activeCat}
+            onChange={(e) => setActiveCat(e.target.value as SaasCategory | "all")}
+            style={{
+              padding: "6px 10px", fontSize: 13,
+              border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
+              background: "var(--panel-2)", color: "var(--ink)", outline: "none", cursor: "pointer",
+            }}
+          >
+            <option value="all">All categories</option>
+            {allCategories.map((c) => (
+              <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
+            ))}
+          </select>
 
           {isFiltered && (
             <button onClick={() => { setSearch(""); setActiveCat("all"); }} style={{ fontSize: 12, color: "var(--ink-4)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
