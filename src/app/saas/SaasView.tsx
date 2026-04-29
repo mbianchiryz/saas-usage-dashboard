@@ -126,6 +126,32 @@ export function SaasView() {
     return { inCatalog, months, monthTotals, inCatalogTotal };
   }, [rows, userVendors]);
 
+  /* These must live here (before any early return) to satisfy Rules of Hooks */
+  const inCatalog  = pivot?.inCatalog  ?? [];
+  const months     = pivot?.months     ?? [];
+  const monthTotals    = pivot?.monthTotals    ?? {};
+  const inCatalogTotal = pivot?.inCatalogTotal ?? 0;
+
+  const allCategories = useMemo(() => {
+    const cats = new Set(inCatalog.map((r) => r.category));
+    return Array.from(cats).sort();
+  }, [inCatalog]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return inCatalog.filter((r) => {
+      const matchSearch = !q || r.name.toLowerCase().includes(q);
+      const matchCat    = activeCat === "all" || r.category === activeCat;
+      return matchSearch && matchCat;
+    });
+  }, [inCatalog, search, activeCat]);
+
+  const filteredTotal       = filtered.reduce((s, r) => s + r.total, 0);
+  const filteredMonthTotals = Object.fromEntries(
+    months.map((m) => [m, filtered.reduce((s, r) => s + (r.byMonth[m] ?? 0), 0)])
+  );
+  const isFiltered = search.trim() !== "" || activeCat !== "all";
+
   if (loading) {
     return (
       <div>
@@ -153,28 +179,6 @@ export function SaasView() {
       </div>
     );
   }
-
-  const { inCatalog, months, monthTotals, inCatalogTotal } = pivot;
-
-  const allCategories = useMemo(() => {
-    const cats = new Set(inCatalog.map((r) => r.category));
-    return Array.from(cats).sort();
-  }, [inCatalog]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return inCatalog.filter((r) => {
-      const matchSearch = !q || r.name.toLowerCase().includes(q);
-      const matchCat    = activeCat === "all" || r.category === activeCat;
-      return matchSearch && matchCat;
-    });
-  }, [inCatalog, search, activeCat]);
-
-  const filteredTotal    = filtered.reduce((s, r) => s + r.total, 0);
-  const filteredMonthTotals = Object.fromEntries(
-    months.map((m) => [m, filtered.reduce((s, r) => s + (r.byMonth[m] ?? 0), 0)])
-  );
-  const isFiltered = search.trim() !== "" || activeCat !== "all";
 
   return (
     <div>
