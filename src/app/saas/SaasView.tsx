@@ -271,6 +271,7 @@ function PivotTable({
   showExpected?: boolean;
   emptyMessage: string;
 }) {
+  const hasVariance = showExpected && rows.some((r) => r.expected != null);
   const [sortKey, setSortKey] = useState<SortKey>("total");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -341,7 +342,7 @@ function PivotTable({
             {sortableTh("Category", "category")}
             {months.map((m) => sortableTh(shortMonth(m), `m:${m}`, true, "desc"))}
             {sortableTh("Total",    "total", true, "desc")}
-            {showExpected && sortableTh("Variance", "variance", true, "desc")}
+            {hasVariance && sortableTh("Variance", "variance", true, "desc")}
           </tr>
         </thead>
         <tbody>
@@ -357,24 +358,23 @@ function PivotTable({
                   const v    = r.byMonth[m] ?? 0;
                   const prev = mi > 0 ? (r.byMonth[months[mi - 1]] ?? 0) : null;
                   const mom  = prev != null && prev > 0 ? ((v - prev) / prev) * 100 : null;
+                  const showBadge = mom != null && v > 0;
                   return (
                     <td key={m} style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", color: v ? "var(--ink-2)" : "var(--ink-4)" }}>
                       {v ? fmtUSD(v) : "—"}
-                      {mom != null && v > 0 && (
-                        <div style={{
-                          fontSize: 10, fontWeight: 500, marginTop: 2,
-                          color: mom > 0 ? "var(--danger)" : mom < 0 ? "var(--accent)" : "var(--ink-4)",
-                        }}>
-                          {mom > 0 ? "▲" : "▼"} {Math.abs(mom).toFixed(0)}%
-                        </div>
-                      )}
+                      {/* Always reserve badge height so all columns align */}
+                      <div style={{ fontSize: 10, fontWeight: 500, marginTop: 2, height: 14,
+                        color: showBadge ? (mom! > 0 ? "var(--danger)" : mom! < 0 ? "var(--accent)" : "var(--ink-4)") : "transparent",
+                      }}>
+                        {showBadge ? `${mom! > 0 ? "▲" : "▼"} ${Math.abs(mom!).toFixed(0)}%` : ""}
+                      </div>
                     </td>
                   );
                 })}
                 <td style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 600, color: "var(--ink)" }}>
                   {fmtUSD(r.total)}
                 </td>
-                {showExpected && (
+                {hasVariance && (
                   <td style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)" }}>
                     {variance == null
                       ? <span style={{ color: "var(--ink-4)" }}>—</span>
@@ -424,7 +424,7 @@ function PivotTable({
             <td style={{ ...tdCell, textAlign: "right", fontFamily: "var(--font-mono, monospace)", fontWeight: 700, color: "var(--ink)" }}>
               {fmtUSD(grandTotal)}
             </td>
-            {showExpected && <td style={tdCell}></td>}
+            {hasVariance && <td style={tdCell}></td>}
           </tr>
         </tbody>
       </table>
