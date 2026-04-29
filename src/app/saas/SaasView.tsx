@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowUpDown, Search, X } from "lucide-react";
 import Link from "next/link";
 import { parseAmexCsv, type AmexRow } from "@/lib/amex-parser";
 import { normaliseStore, type AmexStore } from "@/lib/amex-merge";
@@ -154,6 +154,29 @@ export function SaasView() {
 
   const { inCatalog, months, monthTotals, inCatalogTotal } = pivot;
 
+  const [search,          setSearch]          = useState("");
+  const [activeCat,       setActiveCat]       = useState<SaasCategory | "all">("all");
+
+  const allCategories = useMemo(() => {
+    const cats = new Set(inCatalog.map((r) => r.category));
+    return Array.from(cats).sort();
+  }, [inCatalog]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return inCatalog.filter((r) => {
+      const matchSearch = !q || r.name.toLowerCase().includes(q);
+      const matchCat    = activeCat === "all" || r.category === activeCat;
+      return matchSearch && matchCat;
+    });
+  }, [inCatalog, search, activeCat]);
+
+  const filteredTotal    = filtered.reduce((s, r) => s + r.total, 0);
+  const filteredMonthTotals = Object.fromEntries(
+    months.map((m) => [m, filtered.reduce((s, r) => s + (r.byMonth[m] ?? 0), 0)])
+  );
+  const isFiltered = search.trim() !== "" || activeCat !== "all";
+
   return (
     <div>
       <PageHeader
@@ -169,16 +192,65 @@ export function SaasView() {
       </div>
 
       <Panel padding={0} style={{ overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
+        {/* Filters row */}
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--line)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+          {/* Search box */}
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <Search size={13} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "var(--ink-4)", pointerEvents: "none" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search vendor…"
+              style={{
+                paddingLeft: 28, paddingRight: search ? 28 : 10, paddingTop: 6, paddingBottom: 6,
+                fontSize: 13, border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
+                background: "var(--panel-2)", color: "var(--ink)", outline: "none", width: 180,
+              }}
+            />
+            {search && (
+              <button onClick={() => setSearch("")} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 0, lineHeight: 1 }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Category pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(["all", ...allCategories] as (SaasCategory | "all")[]).map((c) => {
+              const active = activeCat === c;
+              return (
+                <button key={c} onClick={() => setActiveCat(c)} style={{
+                  padding: "4px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer",
+                  borderRadius: 999, border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,
+                  background: active ? "var(--ink)" : "var(--panel-2)",
+                  color:      active ? "var(--bg)"  : "var(--ink-3)",
+                  transition: "background .12s, color .12s",
+                }}>
+                  {c === "all" ? "All" : CATEGORY_LABEL[c]}
+                </button>
+              );
+            })}
+          </div>
+
+          {isFiltered && (
+            <button onClick={() => { setSearch(""); setActiveCat("all"); }} style={{ fontSize: 12, color: "var(--ink-4)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid var(--line)" }}>
           <SectionTitle sub="Vendors registered in the catalog (manage on the Budgets tab)">
-            Catalog · {inCatalog.length} vendor{inCatalog.length === 1 ? "" : "s"}
+            {isFiltered
+              ? `${filtered.length} of ${inCatalog.length} vendor${inCatalog.length === 1 ? "" : "s"}`
+              : `Catalog · ${inCatalog.length} vendor${inCatalog.length === 1 ? "" : "s"}`}
           </SectionTitle>
           <Link href="/budgets" style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none" }}>
             Manage catalog →
           </Link>
         </div>
-        <PivotTable rows={inCatalog} months={months} grandTotal={inCatalogTotal} monthTotals={monthTotals}
-          showExpected emptyMessage="No catalog vendors with charges in this CSV yet. Add some on the Budgets tab." />
+        <PivotTable rows={filtered} months={months} grandTotal={filteredTotal} monthTotals={filteredMonthTotals}
+          showExpected emptyMessage={isFiltered ? "No vendors match the current filters." : "No catalog vendors with charges in this CSV yet. Add some on the Budgets tab."} />
       </Panel>
 
     </div>
