@@ -2,15 +2,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import Link from "next/link";
-import { parseAmexCsv } from "@/lib/amex-parser";
+import { parseAmexCsv, type AmexRow } from "@/lib/amex-parser";
+import { normaliseStore, type AmexStore } from "@/lib/amex-merge";
 import { classifySaas, CATEGORY_LABEL, type SaasCategory } from "@/lib/saas-classifier";
 import type { SaasVendor } from "@/lib/saas-vendors";
 import { Panel, PageHeader, SectionTitle, Pill, Metric } from "@/components/ui";
 import { fmtUSD } from "@/lib/format";
 
-const SHARED_KEY  = "amex_csv";
-const LS_KEY_CSV  = "amex_csv_text";
-const LS_KEY_NAME = "amex_csv_filename";
+const SHARED_KEY     = "amex_csv";
+const LS_KEY_STORE   = "amex_store_v2";
 
 interface PivotRow {
   name:       string;
@@ -28,12 +28,12 @@ function shortMonth(ym: string): string {
 }
 
 export function SaasView() {
-  const [csvText,     setCsvText]     = useState<string | null>(null);
+  const [rows,        setRows]        = useState<AmexRow[] | null>(null);
   const [fileName,    setFileName]    = useState<string | null>(null);
   const [userVendors, setUserVendors] = useState<SaasVendor[]>([]);
   const [loading,     setLoading]     = useState(true);
 
-  /* Load vendors + CSV (Supabase first, fall back to localStorage for the CSV) */
+  /* Load vendors + Amex store (Supabase first, fall back to localStorage). */
   useEffect(() => {
     async function load() {
       try {
@@ -42,17 +42,44 @@ export function SaasView() {
           fetch(`/api/saas-vendors`).then((r) => r.json()).catch(() => ({ vendors: [] })),
         ]);
 
-        let text: string | null = csvRes?.data?.csvText  ?? null;
-        let name: string | null = csvRes?.data?.fileName ?? null;
+        let store: AmexStore | null = null;
+        if (csvRes?.data) store = normaliseStore(csvRes.data, parseAmexCsv);
 
-        if (!text) {
-          const lsText = typeof window !== "undefined" ? localStorage.getItem(LS_KEY_CSV)  : null;
-          const lsName = typeof window !== "undefined" ? localStorage.getItem(LS_KEY_NAME) : null;
-          if (lsText) { text = lsText; name = lsName; }
+        if (!store || store.rows.length === 0) {
+          const lsRaw = typeof window !== "undefined" ? localStorage.getItem(LS_KEY_STORE) : null;
+          if (lsRaw) {
+            try {
+              const parsed = JSON.parse(lsRaw) as AmexStore;
+              if (Array.isArray(parsed.rows) && parsed.rows.length > 0) store = parsed;
+            } catch { /* ignore */ }
+          }
         }
 
-        setCsvText(text);
-        setFileName(name);
+        /* Migration from old single-CSV localStorage format */
+        if (!store || store.rows.length === 0) {
+          const oldCsv  = typeof window !== "undefined" ? localStorage.getItem("amex_csv_text")     : null;
+          const oldName = typeof window !== "undefined" ? localStorage.getItem("amex_csv_filename") : null;
+          if (oldCsv) {
+            const { rows: oldRows } = parseAmexCsv(oldCsv);
+            if (oldRows.length > 0) {
+              store = {
+                rows:    oldRows,
+                history: [{
+                  fileName:   oldName ?? "imported.csv",
+                  uploadedAt: new Date().toISOString(),
+                  total:      oldRows.length,
+                  added:      oldRows.length,
+                  duplicates: 0,
+                }],
+              };
+            }
+          }
+        }
+
+        if (store && store.rows.length > 0) {
+          setRows(store.rows);
+          setFileName(store.history[0]?.fileName ?? null);
+        }
         setUserVendors(Array.isArray(vendorRes.vendors) ? vendorRes.vendors : []);
       } finally {
         setLoading(false);
@@ -62,9 +89,8 @@ export function SaasView() {
   }, []);
 
   const pivot = useMemo(() => {
-    if (!csvText) return null;
-    const parsed = parseAmexCsv(csvText);
-    const nonAi  = parsed.rows.filter((r) => r.provider === null);
+    if (!rows) return null;
+    const nonAi = rows.filter((r) => r.provider === null);
 
     const catalogNames = new Set(userVendors.map((v) => v.name));
     const monthSet     = new Set<string>();
@@ -91,13 +117,12 @@ export function SaasView() {
     const months    = Array.from(monthSet).sort();
     const allRows   = Array.from(groups.values()).sort((a, b) => b.total - a.total);
     const inCatalog = allRows.filter((r) => r.inCatalog);
-    const detected  = allRows.filter((r) => !r.inCatalog);
 
     const inCatalogTotal = inCatalog.reduce((s, r) => s + r.total, 0);
     const monthTotals    = Object.fromEntries(months.map((m) => [m, inCatalog.reduce((s, r) => s + (r.byMonth[m] ?? 0), 0)]));
 
     return { inCatalog, months, monthTotals, inCatalogTotal };
-  }, [csvText, userVendors]);
+  }, [rows, userVendors]);
 
   if (loading) {
     return (
@@ -108,7 +133,7 @@ export function SaasView() {
     );
   }
 
-  if (!csvText || !pivot) {
+  if (!rows || !pivot) {
     return (
       <div>
         <PageHeader title="SaaS subscriptions" subtitle="Total per vendor across the uploaded Amex CSV" />
