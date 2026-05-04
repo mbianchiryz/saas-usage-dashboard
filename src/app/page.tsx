@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { repo } from "@/lib/repo";
 import { supabase } from "@/lib/supabase";
 import { todayStr } from "@/lib/metrics";
@@ -71,8 +72,12 @@ export default async function OverviewPage() {
         </div>
       )}
 
-      {/* Everything else — driven by Amex data, loaded client-side */}
-      <AmexOverviewSection />
+      {/* Everything else — driven by Amex data, loaded client-side.
+          Wrapped in Suspense because useSearchParams() bails out of
+          static prerendering otherwise. */}
+      <Suspense fallback={null}>
+        <AmexOverviewSection />
+      </Suspense>
     </div>
   );
 }
