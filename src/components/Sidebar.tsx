@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useMobileNav } from "./MobileNavProvider";
 
 const NAV = [
-  { href: "/",           label: "Overview" },
+  { href: "/",           label: "AI Overview" },
   { href: "/developers", label: "Developers" },
   { href: "/models",     label: "Models" },
   { href: "/saas",       label: "SaaS" },
