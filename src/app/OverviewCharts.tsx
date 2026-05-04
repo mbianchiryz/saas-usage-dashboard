@@ -6,14 +6,13 @@ import { fmtUSD } from "@/lib/format";
 interface Props {
   series: { date: string; anthropic: number; openai: number }[];
   burn: number;
-  rangeLabel?: string;
 }
 
-export function OverviewCharts({ series, burn, rangeLabel }: Props) {
+export function OverviewCharts({ series, burn }: Props) {
   return (
     <Panel padding={24} style={{ marginBottom: 24 }}>
       <SectionTitle
-        sub={`Stacked by provider${rangeLabel ? ` · ${rangeLabel.toLowerCase()}` : ""}`}
+        sub="Stacked by provider · last 30 days"
         right={
           <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, color: "var(--ink-3)" }}>
             <span>
