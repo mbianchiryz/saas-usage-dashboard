@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMobileNav } from "./MobileNavProvider";
+import { LogOut } from "lucide-react";
 
 const NAV = [
   { href: "/",           label: "Overview" },
@@ -15,6 +16,12 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const { open, setOpen } = useMobileNav();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+  }
   return (
     <>
       {/* Drawer overlay on narrow screens */}
@@ -78,6 +85,24 @@ export function Sidebar() {
         })}
       </nav>
 
+        {/* Logout */}
+        <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              width: "100%", padding: "7px 10px", borderRadius: 7,
+              background: "transparent", border: "none",
+              color: "var(--ink-4)", fontSize: 13, fontWeight: 500,
+              cursor: "pointer", transition: "color .12s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ink-2)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-4)")}
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
+        </div>
       </aside>
     </>
   );
