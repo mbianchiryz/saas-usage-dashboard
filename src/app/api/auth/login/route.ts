@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
+
+function sha256(s: string) {
+  return createHash("sha256").update(s).digest("hex");
+}
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json().catch(() => ({}));
 
-  if (!password || password !== process.env.DASHBOARD_PASSWORD) {
+  if (!password || sha256(password) !== process.env.DASHBOARD_PASSWORD_HASH) {
     return NextResponse.json({ error: "invalid_password" }, { status: 401 });
   }
 
