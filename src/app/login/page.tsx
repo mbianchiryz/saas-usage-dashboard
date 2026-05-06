@@ -1,13 +1,11 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState(false);
   const [loading,  setLoading]  = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -21,7 +19,9 @@ export default function LoginPage() {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        router.replace("/");
+        // Full reload so the cookie is flushed to the browser
+        // before the middleware runs on any subsequent page.
+        window.location.href = "/";
       } else {
         setError(true);
         setPassword("");
