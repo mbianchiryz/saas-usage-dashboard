@@ -10,7 +10,8 @@ const NAV = [
   { href: "/models",     label: "Models" },
   { href: "/saas",       label: "SaaS" },
   { href: "/budgets",    label: "Budgets" },
-  { href: "/amex",       label: "Amex Reconciliation" },
+  { href: "/amex",         label: "Amex Reconciliation" },
+  { href: "/weekly-spend", label: "Weekly Spend" },
 ];
 
 export function Sidebar() {
