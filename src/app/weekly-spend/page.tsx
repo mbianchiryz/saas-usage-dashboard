@@ -87,13 +87,20 @@ function buildWeeks(rows: AmexRow[], from: string, to: string): WeekRow[] {
     }));
 }
 
-type FilterPreset = "all" | "this-month" | "last-month" | "custom";
+type FilterPreset  = "all" | "this-month" | "last-month" | "custom";
+type ProviderFilter = "both" | "anthropic" | "openai";
 
 const PRESETS: { value: FilterPreset; label: string }[] = [
   { value: "all",        label: "All 2026"   },
   { value: "this-month", label: "This month" },
   { value: "last-month", label: "Last month" },
   { value: "custom",     label: "Custom"     },
+];
+
+const PROVIDERS: { value: ProviderFilter; label: string }[] = [
+  { value: "both",      label: "Both"      },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "openai",    label: "OpenAI"    },
 ];
 
 function btnStyle(active: boolean): React.CSSProperties {
@@ -117,6 +124,7 @@ export default function WeeklySpendPage() {
   const [preset,     setPreset]     = useState<FilterPreset>("all");
   const [customFrom, setCustomFrom] = useState(() => monthRange(0).from);
   const [customTo,   setCustomTo]   = useState(() => todayISO());
+  const [providerF,  setProviderF]  = useState<ProviderFilter>("both");
 
   useEffect(() => {
     async function load() {
@@ -151,10 +159,20 @@ export default function WeeklySpendPage() {
     return { from: "2026-01-01", to: "2026-12-31" };
   }, [preset, customFrom, customTo]);
 
-  const weeks = useMemo(() => buildWeeks(store.rows, from, to), [store, from, to]);
+  const allWeeks = useMemo(() => buildWeeks(store.rows, from, to), [store, from, to]);
 
-  const totalAnt = weeks.reduce((s, w) => s + w.anthropic, 0);
-  const totalOai = weeks.reduce((s, w) => s + w.openai, 0);
+  /* Apply provider filter to each week's displayed values */
+  const weeks = useMemo(() => allWeeks.map((w) => ({
+    ...w,
+    anthropic: providerF === "openai"    ? 0 : w.anthropic,
+    openai:    providerF === "anthropic" ? 0 : w.openai,
+    total:     providerF === "anthropic" ? w.anthropic
+             : providerF === "openai"    ? w.openai
+             : w.total,
+  })).filter((w) => w.total > 0), [allWeeks, providerF]);
+
+  const totalAnt = providerF === "openai"    ? 0 : allWeeks.reduce((s, w) => s + w.anthropic, 0);
+  const totalOai = providerF === "anthropic" ? 0 : allWeeks.reduce((s, w) => s + w.openai, 0);
   const totalAll = totalAnt + totalOai;
   const avgWeek  = weeks.length > 0 ? totalAll / weeks.length : 0;
   const peakWeek = weeks.reduce<WeekRow | null>((best, w) => (!best || w.total > best.total) ? w : best, null);
@@ -204,6 +222,7 @@ export default function WeeklySpendPage() {
 
       {/* ── Filter bar ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        {/* Date presets */}
         {PRESETS.map((p) => (
           <button key={p.value} onClick={() => setPreset(p.value)} style={btnStyle(preset === p.value)}>
             {p.label}
@@ -218,6 +237,16 @@ export default function WeeklySpendPage() {
               style={{ border: "1px solid var(--line)", borderRadius: "var(--r-sm)", background: "var(--panel-2)", color: "var(--ink)", padding: "5px 10px", fontSize: 13 }} />
           </div>
         )}
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 22, background: "var(--line)", margin: "0 4px", flexShrink: 0 }} />
+
+        {/* Provider filter */}
+        {PROVIDERS.map((p) => (
+          <button key={p.value} onClick={() => setProviderF(p.value)} style={btnStyle(providerF === p.value)}>
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {/* Bar chart */}
