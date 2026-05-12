@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Legend,
+  CartesianGrid, Legend, LabelList,
 } from "recharts";
 import { Panel, SectionTitle, Metric, PageHeader, PROVIDER_HEX } from "@/components/ui";
 import { fmtUSD } from "@/lib/format";
@@ -230,24 +230,54 @@ export default function WeeklySpendPage() {
             No charges in this period.
           </div>
         ) : (
-          <div style={{ height: 280 }}>
+          <div style={{ height: 310 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeks} margin={{ top: 4, right: 8, left: -12, bottom: 0 }} barSize={weeks.length > 20 ? 10 : 18}>
+              <BarChart data={weeks} margin={{ top: 28, right: 8, left: -12, bottom: 0 }} barSize={weeks.length > 20 ? 10 : 18}>
                 <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="short" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => fmtUSD(v, { compact: true })} />
                 <Tooltip
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(v: number, name: any) => [fmtUSD(v), name === "anthropic" ? "Anthropic" : "OpenAI"]}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  labelFormatter={(_label: any, payload: any[]) => {
-                    const w = payload?.[0]?.payload as WeekRow | undefined;
-                    return w ? w.label : _label;
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const w = payload[0]?.payload as WeekRow;
+                    return (
+                      <div style={{
+                        background: "var(--panel)", border: "1px solid var(--line)",
+                        borderRadius: "var(--r-sm)", padding: "10px 14px",
+                        fontSize: 13, lineHeight: 1.7,
+                        boxShadow: "0 4px 16px rgba(0,0,0,.12)",
+                      }}>
+                        <div style={{ fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>{w.label}</div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 24 }}>
+                          <span style={{ color: PROVIDER_HEX.anthropic }}>Anthropic</span>
+                          <span className="tnum" style={{ fontWeight: 500 }}>{fmtUSD(w.anthropic)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 24 }}>
+                          <span style={{ color: PROVIDER_HEX.openai }}>OpenAI</span>
+                          <span className="tnum" style={{ fontWeight: 500 }}>{fmtUSD(w.openai)}</span>
+                        </div>
+                        <div style={{
+                          display: "flex", justifyContent: "space-between", gap: 24,
+                          borderTop: "1px solid var(--line)", marginTop: 6, paddingTop: 6,
+                        }}>
+                          <span style={{ color: "var(--ink)", fontWeight: 600 }}>Total</span>
+                          <span className="tnum" style={{ fontWeight: 700, color: "var(--ink)" }}>{fmtUSD(w.total)}</span>
+                        </div>
+                      </div>
+                    );
                   }}
                 />
                 <Legend formatter={(v) => v === "anthropic" ? "Anthropic" : "OpenAI"} />
                 <Bar dataKey="anthropic" stackId="a" fill={PROVIDER_HEX.anthropic} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="openai"    stackId="a" fill={PROVIDER_HEX.openai}    radius={[3, 3, 0, 0]} />
+                <Bar dataKey="openai"    stackId="a" fill={PROVIDER_HEX.openai}    radius={[3, 3, 0, 0]}>
+                  <LabelList
+                    dataKey="total"
+                    position="top"
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    formatter={(v: any) => fmtUSD(v, { compact: true })}
+                    style={{ fontSize: 10, fill: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
