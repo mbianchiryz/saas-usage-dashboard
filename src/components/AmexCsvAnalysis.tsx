@@ -212,6 +212,15 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
             value={fmtUSD(anthropicTotal)}
             sub={`${matched.filter((r) => r.provider === "anthropic").length} transactions`}
           />
+          {series.length > 0 && (
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-4)" }}>
+              Avg{" "}
+              <span style={{ color: "var(--ink-2)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                {fmtUSD(anthropicTotal / series.length)}
+              </span>
+              /day
+            </div>
+          )}
           {showDelta && <div style={{ marginTop: 6 }}><DeltaBadge current={anthropicTotal} prev={prevAnthropic} /></div>}
         </Panel>
         <Panel>
@@ -220,6 +229,15 @@ export function AmexCsvAnalysis({ result }: { result: ParseResult }) {
             value={fmtUSD(openaiTotal)}
             sub={`${matched.filter((r) => r.provider === "openai").length} transactions`}
           />
+          {series.length > 0 && (
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-4)" }}>
+              Avg{" "}
+              <span style={{ color: "var(--ink-2)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                {fmtUSD(openaiTotal / series.length)}
+              </span>
+              /day
+            </div>
+          )}
           {showDelta && <div style={{ marginTop: 6 }}><DeltaBadge current={openaiTotal} prev={prevOpenai} /></div>}
         </Panel>
       </div>
