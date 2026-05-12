@@ -15,19 +15,45 @@ export interface MergeResult {
   duplicates: number;
 }
 
-/** Append `incoming` to `existing`, dropping duplicates by signature. */
+/** Append `incoming` to `existing`, dropping duplicates by signature.
+ *
+ * Deduplication is COUNT-AWARE: if the same (date|amount|description)
+ * signature appears N times in the existing store and M times in the
+ * incoming file, we add max(0, M - N) new rows.  This preserves
+ * legitimately-repeated charges (e.g. two API invoices on the same day
+ * for the same amount) while still preventing re-uploads of the same
+ * CSV from inflating the totals.
+ */
 export function mergeRows(existing: AmexRow[], incoming: AmexRow[]): MergeResult {
-  const seen = new Set(existing.map(rowSignature));
+  // Count how many times each signature already exists in the store.
+  const existingCounts = new Map<string, number>();
+  for (const r of existing) {
+    const sig = rowSignature(r);
+    existingCounts.set(sig, (existingCounts.get(sig) ?? 0) + 1);
+  }
+
+  // Track how many of each signature we've seen while iterating incoming.
+  const incomingCounts = new Map<string, number>();
+
   const merged: AmexRow[] = [...existing];
   let added = 0;
   let duplicates = 0;
+
   for (const r of incoming) {
     const sig = rowSignature(r);
-    if (seen.has(sig)) { duplicates++; continue; }
-    seen.add(sig);
+    const nth = (incomingCounts.get(sig) ?? 0) + 1;
+    incomingCounts.set(sig, nth);
+
+    // Only add this occurrence if it exceeds what we already stored.
+    if (nth <= (existingCounts.get(sig) ?? 0)) {
+      duplicates++;
+      continue;
+    }
+
     merged.push(r);
     added++;
   }
+
   // Sort newest-first by date for stable display
   merged.sort((a, b) => b.date.localeCompare(a.date));
   return { merged, added, duplicates };
