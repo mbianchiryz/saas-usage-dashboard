@@ -391,6 +391,11 @@ export default function WeeklySpendPage() {
   const monthVariance   = monthBudget != null ? monthBudget - monthProjected : null;
   // positive = budget remaining for the month; negative = over budget
 
+  // Actual spent this month so far (no projection, just real charges up to today)
+  const monthActual = thisMonthWeeks
+    .filter(w => w.key <= currentWkKey)
+    .reduce((s, w) => s + w.total, 0);
+
   /* ── Previous period comparison ── */
   const prevTotal = prevWeeks.reduce((s, w) => {
     const ant = providerF === "openai"    ? 0 : w.anthropic;
@@ -401,14 +406,16 @@ export default function WeeklySpendPage() {
   const prevDelta      = totalAll - prevTotal;
   const prevDeltaPct   = prevTotal > 0 ? (prevDelta / prevTotal) * 100 : null;
 
-  /* ── Chart data with over-budget flag ── */
-  const chartWeeks = useMemo(() => weeks.map((w) => ({
-    ...w,
-    overBudget: hasBudget && effectiveBudgetWk > 0 && w.total > effectiveBudgetWk,
-  })), [weeks, hasBudget, effectiveBudgetWk]);
+  /* ── Chart data: only weeks up to today (no empty future bars) ── */
+  const chartWeeks = useMemo(() => weeks
+    .filter(w => w.key <= currentWkKey)
+    .map((w) => ({
+      ...w,
+      overBudget: hasBudget && effectiveBudgetWk > 0 && w.total > effectiveBudgetWk,
+    })), [weeks, currentWkKey, hasBudget, effectiveBudgetWk]);
 
-  /* Sparkline: last 12 weeks (all, including zeros) */
-  const sparkData = useMemo(() => weeks.slice(-12), [weeks]);
+  /* Sparkline: last 12 weeks up to today */
+  const sparkData = useMemo(() => weeks.filter(w => w.key <= currentWkKey).slice(-12), [weeks, currentWkKey]);
 
   const showAlert = hasBudget && monthVariance != null && monthVariance < 0 && isCurrentWkInMonth;
 
@@ -586,21 +593,23 @@ export default function WeeklySpendPage() {
           </div>
         )}
 
-        {/* Budget stats */}
-        {hasBudget && periodBudget != null && !editingBudget && (
+        {/* Budget stats — all month-scoped, no full-year carryover */}
+        {hasBudget && monthBudget != null && !editingBudget && (
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-            <StatBox label="Period budget" value={fmtUSD(periodBudget)}
-              sub={`${weeks.length} wk × ${fmtUSD(effectiveBudgetWk)}`} />
+            <StatBox label="This month budget" value={fmtUSD(monthBudget)}
+              sub={`${thisMonthWkKeys.length} wk × ${fmtUSD(effectiveBudgetWk)}`} />
             <div style={VDIV} />
-            <StatBox label="Actual" value={fmtUSD(totalAll)}
-              sub={`${periodBudget > 0 ? ((totalAll / periodBudget) * 100).toFixed(0) : 0}% consumed`} />
-            {variance != null && (
+            <StatBox label="Spent this month" value={fmtUSD(monthActual)}
+              sub={`${monthBudget > 0 ? ((monthActual / monthBudget) * 100).toFixed(0) : 0}% of monthly budget`} />
+            {monthBudget != null && (
               <>
                 <div style={VDIV} />
-                <StatBox label="Variance"
-                  value={`${variance > 0 ? "▲" : "▼"} ${fmtUSD(Math.abs(variance))}`}
-                  sub={variance > 0 ? "over budget" : "under budget"}
-                  tone={variance > 0 ? "danger" : "accent"} />
+                <StatBox
+                  label="Remaining (actual)"
+                  value={`${monthBudget - monthActual >= 0 ? "▼" : "▲"} ${fmtUSD(Math.abs(monthBudget - monthActual))}`}
+                  sub={monthBudget - monthActual >= 0 ? "left to spend" : "over so far"}
+                  tone={monthBudget - monthActual < 0 ? "danger" : "accent"}
+                />
               </>
             )}
             {projectedThisWk != null && effectiveBudgetWk > 0 && (
@@ -616,11 +625,11 @@ export default function WeeklySpendPage() {
                 />
               </>
             )}
-            {monthBudget != null && monthVariance != null && (
+            {monthVariance != null && futureMonthWkCount > 0 && (
               <>
                 <div style={VDIV} />
                 <StatBox
-                  label="This month · projection"
+                  label="Month end · projected"
                   value={fmtUSD(monthProjected)}
                   sub={monthVariance >= 0
                     ? `▼ ${fmtUSD(monthVariance)} remaining of ${fmtUSD(monthBudget)}`
