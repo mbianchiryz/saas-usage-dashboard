@@ -355,6 +355,42 @@ export default function WeeklySpendPage() {
     ? Math.round((currentWkRow.total / dayOfWeek) * 7 * 100) / 100
     : null;
 
+  /* ── This-month projection (no carryover from previous months) ──────────
+     Always tracks the current calendar month regardless of filter selection.
+     Completed weeks → actual; current week → extrapolated; future weeks →
+     average of completed weeks this month (or global avg if month just started).
+  ── */
+  const [tmFrom, tmTo] = useMemo(() => { const r = monthRange(0); return [r.from, r.to]; }, []);
+  const thisMonthWkKeys = useMemo(() => generateWeekKeys(tmFrom, tmTo), [tmFrom, tmTo]);
+
+  const thisMonthWeeks = useMemo(() => {
+    const raw = buildWeeks(store.rows, tmFrom, tmTo);
+    return raw.map(w => ({
+      ...w,
+      total: providerF === "anthropic" ? w.anthropic
+           : providerF === "openai"    ? w.openai
+           : w.total,
+    }));
+  }, [store, tmFrom, tmTo, providerF]);
+
+  const monthBudget            = hasBudget && effectiveBudgetWk > 0 ? effectiveBudgetWk * thisMonthWkKeys.length : null;
+  const completedMonthWkKeys   = thisMonthWkKeys.filter(k => k < currentWkKey);
+  const futureMonthWkCount     = thisMonthWkKeys.filter(k => k > currentWkKey).length;
+  const completedMonthSpend    = thisMonthWeeks.filter(w => w.key < currentWkKey).reduce((s, w) => s + w.total, 0);
+  const currentMonthWkData     = thisMonthWeeks.find(w => w.key === currentWkKey);
+  const isCurrentWkInMonth     = thisMonthWkKeys.includes(currentWkKey);
+  const monthPacePerWk         = completedMonthWkKeys.length > 0
+    ? completedMonthSpend / completedMonthWkKeys.length
+    : avgPerElapsed;
+  const projCurrentMonthWk     = isCurrentWkInMonth
+    ? (currentMonthWkData && currentMonthWkData.total > 0
+        ? Math.round((currentMonthWkData.total / dayOfWeek) * 7 * 100) / 100
+        : monthPacePerWk)
+    : 0;
+  const monthProjected  = completedMonthSpend + projCurrentMonthWk + futureMonthWkCount * monthPacePerWk;
+  const monthVariance   = monthBudget != null ? monthBudget - monthProjected : null;
+  // positive = budget remaining for the month; negative = over budget
+
   /* ── Previous period comparison ── */
   const prevTotal = prevWeeks.reduce((s, w) => {
     const ant = providerF === "openai"    ? 0 : w.anthropic;
@@ -374,7 +410,7 @@ export default function WeeklySpendPage() {
   /* Sparkline: last 12 weeks (all, including zeros) */
   const sparkData = useMemo(() => weeks.slice(-12), [weeks]);
 
-  const showAlert = hasBudget && projectedVariance != null && projectedVariance > 0 && weeksRemaining > 0;
+  const showAlert = hasBudget && monthVariance != null && monthVariance < 0 && isCurrentWkInMonth;
 
   const rangeLabel = preset === "all" ? "All 2026"
     : preset === "this-month"   ? "This month"
@@ -437,17 +473,17 @@ export default function WeeklySpendPage() {
           sub={`${totalAll > 0 ? ((totalOai / totalAll) * 100).toFixed(0) : 0}% of total`}
           sparkline={<MiniSparkline data={sparkData} dataKey="openai" color={PROVIDER_HEX.openai} />}
         />
-        {hasBudget && periodBudget != null ? (
+        {hasBudget && monthBudget != null ? (
           <Metric
-            label="Projected total"
-            value={fmtUSD(projectedTotal)}
-            sub={projectedVariance != null
-              ? projectedVariance > 0
-                ? `▲ ${fmtUSD(projectedVariance)} over budget`
-                : `▼ ${fmtUSD(Math.abs(projectedVariance))} under budget`
+            label="This month · projected"
+            value={fmtUSD(monthProjected)}
+            sub={monthVariance != null
+              ? monthVariance >= 0
+                ? `▼ ${fmtUSD(monthVariance)} remaining`
+                : `▲ ${fmtUSD(Math.abs(monthVariance))} over budget`
               : "—"}
-            delta={projectedVariance != null ? `at ${fmtUSD(avgPerElapsed)}/wk` : undefined}
-            deltaTone="neutral"
+            delta={`budget ${fmtUSD(monthBudget)}`}
+            deltaTone={monthVariance != null && monthVariance < 0 ? "down" : "neutral"}
           />
         ) : (
           <Metric
@@ -580,18 +616,16 @@ export default function WeeklySpendPage() {
                 />
               </>
             )}
-            {weeksRemaining > 0 && (
+            {monthBudget != null && monthVariance != null && (
               <>
                 <div style={VDIV} />
                 <StatBox
-                  label="Period projection"
-                  value={fmtUSD(projectedTotal)}
-                  sub={projectedVariance != null
-                    ? projectedVariance > 0
-                      ? `▲ ${fmtUSD(projectedVariance)} over`
-                      : `▼ ${fmtUSD(Math.abs(projectedVariance))} under`
-                    : `${weeksRemaining} wk${weeksRemaining > 1 ? "s" : ""} remaining`}
-                  tone={projectedVariance != null && projectedVariance > 0 ? "danger" : "accent"}
+                  label="This month · projection"
+                  value={fmtUSD(monthProjected)}
+                  sub={monthVariance >= 0
+                    ? `▼ ${fmtUSD(monthVariance)} remaining of ${fmtUSD(monthBudget)}`
+                    : `▲ ${fmtUSD(Math.abs(monthVariance))} over · budget ${fmtUSD(monthBudget)}`}
+                  tone={monthVariance < 0 ? "danger" : "accent"}
                 />
               </>
             )}
@@ -605,7 +639,7 @@ export default function WeeklySpendPage() {
       )}
 
       {/* ── Alert banner ── */}
-      {showAlert && projectedVariance != null && (
+      {showAlert && monthVariance != null && (
         <div style={{
           display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
           borderRadius: "var(--r-sm)", border: "1px solid var(--danger)",
@@ -613,9 +647,9 @@ export default function WeeklySpendPage() {
         }}>
           <AlertTriangle size={15} style={{ color: "var(--danger)", flexShrink: 0 }} />
           <span style={{ color: "var(--ink)", fontWeight: 500 }}>
-            At current pace you&apos;re projected to exceed the period budget by{" "}
-            <strong style={{ color: "var(--danger)" }}>{fmtUSD(projectedVariance)}</strong>
-            {" "}({fmtUSD(projectedTotal)} projected vs {fmtUSD(periodBudget ?? 0)} budget).
+            At current pace you&apos;re projected to exceed this month&apos;s budget by{" "}
+            <strong style={{ color: "var(--danger)" }}>{fmtUSD(Math.abs(monthVariance))}</strong>
+            {" "}({fmtUSD(monthProjected)} projected vs {fmtUSD(monthBudget ?? 0)} monthly budget).
           </span>
         </div>
       )}
@@ -712,7 +746,7 @@ export default function WeeklySpendPage() {
 
                 {/* Anthropic bar — shown when not "openai only" */}
                 {providerF !== "openai" && (
-                  <Bar dataKey="anthropic" stackId="a"
+                  <Bar dataKey="anthropic" stackId="a" fill={PROVIDER_HEX.anthropic}
                     radius={providerF === "anthropic" ? [3, 3, 0, 0] : [0, 0, 0, 0]}>
                     {chartWeeks.map((e, i) => (
                       <Cell key={i} fill={e.overBudget ? "#b83228" : PROVIDER_HEX.anthropic} />
@@ -728,7 +762,7 @@ export default function WeeklySpendPage() {
 
                 {/* OpenAI bar — shown when not "anthropic only" */}
                 {providerF !== "anthropic" && (
-                  <Bar dataKey="openai" stackId="a" radius={[3, 3, 0, 0]}>
+                  <Bar dataKey="openai" stackId="a" fill={PROVIDER_HEX.openai} radius={[3, 3, 0, 0]}>
                     {chartWeeks.map((e, i) => (
                       <Cell key={i} fill={e.overBudget ? "#e05d44" : PROVIDER_HEX.openai} />
                     ))}
