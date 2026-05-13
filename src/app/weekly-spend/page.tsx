@@ -379,14 +379,19 @@ export default function WeeklySpendPage() {
   const completedMonthSpend    = thisMonthWeeks.filter(w => w.key < currentWkKey).reduce((s, w) => s + w.total, 0);
   const currentMonthWkData     = thisMonthWeeks.find(w => w.key === currentWkKey);
   const isCurrentWkInMonth     = thisMonthWkKeys.includes(currentWkKey);
-  const monthPacePerWk         = completedMonthWkKeys.length > 0
+
+  // Pace uses ONLY May data — no global average fallback.
+  // If no completed May weeks yet, derive pace from the current partial week.
+  // Last resort: fall back to the weekly budget amount itself.
+  const rawMonthPace = completedMonthWkKeys.length > 0
     ? completedMonthSpend / completedMonthWkKeys.length
-    : avgPerElapsed;
-  const projCurrentMonthWk     = isCurrentWkInMonth
+    : null;
+  const projCurrentMonthWk = isCurrentWkInMonth
     ? (currentMonthWkData && currentMonthWkData.total > 0
         ? Math.round((currentMonthWkData.total / dayOfWeek) * 7 * 100) / 100
-        : monthPacePerWk)
+        : (rawMonthPace ?? effectiveBudgetWk))
     : 0;
+  const monthPacePerWk  = rawMonthPace ?? (projCurrentMonthWk > 0 ? projCurrentMonthWk : effectiveBudgetWk);
   const monthProjected  = completedMonthSpend + projCurrentMonthWk + futureMonthWkCount * monthPacePerWk;
   const monthVariance   = monthBudget != null ? monthBudget - monthProjected : null;
   // positive = budget remaining for the month; negative = over budget
@@ -473,7 +478,7 @@ export default function WeeklySpendPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 20 }}>
         <Metric
           label="Total" value={fmtUSD(totalAll)}
-          sub={`${weeks.length} wks tracked · ${rangeLabel.toLowerCase()}`}
+          sub={`${chartWeeks.length} wks to date · ${rangeLabel.toLowerCase()}`}
           sparkline={<MiniSparkline data={sparkData} dataKey="total" color="var(--ink-3)" />}
         />
         <Metric
