@@ -396,6 +396,12 @@ export default function WeeklySpendPage() {
     .filter(w => w.key <= currentWkKey)
     .reduce((s, w) => s + w.total, 0);
 
+  // Pace: how far through the month are we (by week fraction)
+  const monthElapsedRatio = thisMonthWkKeys.length > 0
+    ? (completedMonthWkKeys.length + (isCurrentWkInMonth ? dayOfWeek / 7 : 0)) / thisMonthWkKeys.length
+    : 0;
+  const monthConsumedRatio = monthBudget != null && monthBudget > 0 ? monthActual / monthBudget : 0;
+
   /* ── Previous period comparison ── */
   const prevTotal = prevWeeks.reduce((s, w) => {
     const ant = providerF === "openai"    ? 0 : w.anthropic;
@@ -642,9 +648,9 @@ export default function WeeklySpendPage() {
         )}
       </Panel>
 
-      {/* ── Pace bar ── */}
-      {hasBudget && paceRatio > 0 && totalAll > 0 && (
-        <PaceBar consumed={budgetUsedRatio} elapsed={paceRatio} />
+      {/* ── Pace bar (month-scoped) ── */}
+      {hasBudget && monthBudget != null && monthElapsedRatio > 0 && (
+        <PaceBar consumed={monthConsumedRatio} elapsed={monthElapsedRatio} />
       )}
 
       {/* ── Alert banner ── */}
