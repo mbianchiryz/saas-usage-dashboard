@@ -162,6 +162,13 @@ function btnStyle(active: boolean, danger = false): React.CSSProperties {
     transition:  "all .12s",
   };
 }
+const SELECT_STYLE: React.CSSProperties = {
+  border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
+  background: "var(--panel-2)", color: "var(--ink)",
+  padding: "6px 10px", fontSize: 13, fontWeight: 500,
+  outline: "none", cursor: "pointer",
+};
+
 const INPUT_STYLE: React.CSSProperties = {
   border: "1px solid var(--line)", borderRadius: "var(--r-sm)",
   background: "var(--panel-2)", color: "var(--ink)",
@@ -273,22 +280,48 @@ export default function WeeklySpendPage() {
   }, []);
 
   useEffect(() => {
-    const ls = localStorage.getItem(LS_KEY_BUDGET);
-    if (ls) { try { const b = JSON.parse(ls) as BudgetCfg; setBudget(b); setBudgetDraft(b); } catch { /**/ } }
+    async function loadBudget() {
+      // Try Supabase first (shared across team)
+      try {
+        const res  = await fetch("/api/shared?key=weekly_budget");
+        const json = await res.json();
+        if (json.data && (json.data.anthropic != null || json.data.openai != null)) {
+          const b = json.data as BudgetCfg;
+          setBudget(b); setBudgetDraft(b);
+          localStorage.setItem(LS_KEY_BUDGET, JSON.stringify(b));
+          return;
+        }
+      } catch { /* fallback */ }
+      // Fallback to localStorage cache
+      const ls = localStorage.getItem(LS_KEY_BUDGET);
+      if (ls) { try { const b = JSON.parse(ls) as BudgetCfg; setBudget(b); setBudgetDraft(b); } catch { /**/ } }
+    }
+    loadBudget();
   }, []);
 
-  function commitBudget() {
+  async function commitBudget() {
     const b: BudgetCfg = {
       anthropic: (budgetDraft.anthropic ?? 0) > 0 ? budgetDraft.anthropic : null,
       openai:    (budgetDraft.openai    ?? 0) > 0 ? budgetDraft.openai    : null,
     };
     setBudget(b); localStorage.setItem(LS_KEY_BUDGET, JSON.stringify(b));
     setEditingBudget(false);
+    // Persist to Supabase so the whole team sees the same budget
+    await fetch("/api/shared", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "weekly_budget", value: b }),
+    });
   }
-  function clearBudget() {
+  async function clearBudget() {
     setBudget(NULL_BUDGET); setBudgetDraft(NULL_BUDGET);
     localStorage.removeItem(LS_KEY_BUDGET);
     setEditingBudget(false); setClearConfirm(false);
+    await fetch("/api/shared", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "weekly_budget", value: NULL_BUDGET }),
+    });
   }
 
   /* ── Date range ── */
@@ -513,21 +546,28 @@ export default function WeeklySpendPage() {
       </div>
 
       {/* ── Filter bar ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        {PRESETS.map((p) => (
-          <button key={p.value} onClick={() => setPreset(p.value)} style={btnStyle(preset === p.value)}>{p.label}</button>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+        {/* Period dropdown */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-4)", whiteSpace: "nowrap" }}>Period</span>
+          <select value={preset} onChange={(e) => setPreset(e.target.value as FilterPreset)} style={SELECT_STYLE}>
+            {PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
         {preset === "custom" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} style={INPUT_STYLE} />
             <span style={{ fontSize: 12, color: "var(--ink-4)" }}>→</span>
             <input type="date" value={customTo}   onChange={(e) => setCustomTo(e.target.value)}   style={INPUT_STYLE} />
           </div>
         )}
-        <div style={{ width: 1, height: 22, background: "var(--line)", margin: "0 4px" }} />
-        {PROVIDERS.map((p) => (
-          <button key={p.value} onClick={() => setProviderF(p.value)} style={btnStyle(providerF === p.value)}>{p.label}</button>
-        ))}
+        {/* AI SaaS dropdown */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-4)", whiteSpace: "nowrap" }}>AI SaaS</span>
+          <select value={providerF} onChange={(e) => setProviderF(e.target.value as ProviderFilter)} style={SELECT_STYLE}>
+            {PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* ── Budget panel ── */}
