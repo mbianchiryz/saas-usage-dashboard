@@ -11,7 +11,7 @@ import { parseAmexCsv, type AmexRow } from "@/lib/amex-parser";
 import { normaliseStore, type AmexStore } from "@/lib/amex-merge";
 import {
   ChevronDown, ChevronUp, Wallet,
-  Download, Copy, Check, AlertTriangle, FileText, X,
+  Download, Copy, Check, AlertTriangle, FileText, X, RefreshCw,
 } from "lucide-react";
 
 const SHARED_KEY    = "amex_csv";
@@ -297,8 +297,9 @@ export default function WeeklySpendPage() {
   const [tableOpen, setTableOpen] = useState(false);
   const [copied,       setCopied]       = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
-  const [showReport,   setShowReport]   = useState(false);
-  const [reportCopied, setReportCopied] = useState(false);
+  const [showReport,     setShowReport]     = useState(false);
+  const [reportCopied,   setReportCopied]   = useState(false);
+  const [editableReport, setEditableReport] = useState("");
 
   /* Filters */
   const [preset,     setPreset]     = useState<FilterPreset>("all");
@@ -524,22 +525,144 @@ export default function WeeklySpendPage() {
     : preset === "last-quarter" ? "Last quarter"
     : `${customFrom} → ${customTo}`;
 
-  const reportText = useMemo(
+  const reportText  = useMemo(
     () => buildReport(chartWeeks, effectiveBudgetWk, hasBudget),
     [chartWeeks, effectiveBudgetWk, hasBudget],
   );
+  const reportWeeks = useMemo(
+    () => chartWeeks.filter(w => w.total > 0).slice(-4),
+    [chartWeeks],
+  );
+
+  function openReport() {
+    setEditableReport(reportText);
+    setShowReport(true);
+  }
 
   function copyReport() {
-    navigator.clipboard.writeText(reportText).then(() => {
+    navigator.clipboard.writeText(editableReport).then(() => {
       setReportCopied(true); setTimeout(() => setReportCopied(false), 2000);
     });
   }
 
   function downloadReport() {
-    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8;" });
+    const blob = new Blob([editableReport], { type: "text/plain;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     Object.assign(document.createElement("a"), { href: url, download: `ai-spend-report-${todayISO()}.txt` }).click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadPDF() {
+    const ANT_COLOR = "#D97757";
+    const OAI_COLOR = "#0F766E";
+    const BUD_COLOR = "#ef4444";
+    const BG        = "#1c1c1e";
+    const PANEL     = "#2a2a2d";
+    const BORDER    = "#3a3a3d";
+    const TEXT      = "#e5e5e7";
+    const MUTED     = "#888890";
+
+    const rawMax = Math.max(...reportWeeks.map(w => w.total), effectiveBudgetWk || 0, 1);
+    // Round up to a nice ceiling so bars don't touch the top
+    const mag     = Math.pow(10, Math.floor(Math.log10(rawMax)));
+    const step    = mag >= 5000 ? 1000 : mag >= 2000 ? 500 : mag >= 1000 ? 250 : mag;
+    const niceMax = Math.ceil(rawMax * 1.12 / step) * step;
+
+    const cH   = 200; // chart area height in px
+    const yW   = 50;  // y-axis column width in px
+
+    // Y-axis ticks (5 evenly spaced)
+    const yTicks = [0, 1, 2, 3, 4].map(i => Math.round(niceMax * i / 4));
+    const fmtT   = (v: number) => v === 0 ? "$0" : v >= 1000 ? `$${v % 1000 === 0 ? v / 1000 : (v / 1000).toFixed(1)}K` : `$${v}`;
+
+    // Y axis labels
+    const yAxisHtml = yTicks.map(v => {
+      const pct = (v / niceMax * 100).toFixed(2);
+      return `<div style="position:absolute;bottom:calc(${pct}% - 7px);right:6px;font-size:10px;color:${MUTED};text-align:right;white-space:nowrap;">${fmtT(v)}</div>`;
+    }).join("");
+
+    // Grid lines (span the full bars area)
+    const gridHtml = yTicks.map(v => {
+      const pct = (v / niceMax * 100).toFixed(2);
+      return `<div style="position:absolute;bottom:${pct}%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.07);z-index:1;"></div>`;
+    }).join("");
+
+    // Single continuous budget line spanning the full bars area
+    const budPct = effectiveBudgetWk > 0 ? (effectiveBudgetWk / niceMax * 100).toFixed(4) : null;
+    const budLineHtml = budPct != null
+      ? `<div style="position:absolute;bottom:${budPct}%;left:0;right:0;border-top:2px dashed ${BUD_COLOR};z-index:4;pointer-events:none;"></div>`
+      : "";
+
+    // Bar columns — no per-bar budget line
+    const barsHtml = reportWeeks.map(w => {
+      const antPx = Math.round(w.anthropic / niceMax * cH);
+      const oaiPx = Math.round(w.openai    / niceMax * cH);
+      const totPx = antPx + oaiPx;
+      return `
+        <div style="flex:1;height:${cH}px;display:flex;align-items:flex-end;justify-content:center;position:relative;z-index:3;">
+          <div style="position:absolute;bottom:${totPx + 5}px;left:0;right:0;text-align:center;font-size:11px;font-weight:700;color:${TEXT};">${fmtT(Math.round(w.total))}</div>
+          <div style="width:68%;max-width:58px;border-radius:4px 4px 0 0;overflow:hidden;">
+            <div style="height:${oaiPx}px;background:${OAI_COLOR};"></div>
+            <div style="height:${antPx}px;background:${ANT_COLOR};"></div>
+          </div>
+        </div>`;
+    }).join("");
+
+    const plainText = editableReport.replace(/\*/g, "");
+    const html = `<!DOCTYPE html><html><head>
+      <meta charset="utf-8"><title>AI Spend Report – ${todayISO()}</title>
+      <style>
+        @page{margin:0;}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        html,body{background:${BG};color:${TEXT};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+        body{display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:32px 24px;}
+        .card{background:${PANEL};border:1px solid ${BORDER};border-radius:16px;padding:32px;width:100%;max-width:640px;}
+        h2{font-size:20px;font-weight:700;color:${TEXT};margin-bottom:4px;}
+        .sub{font-size:12px;color:${MUTED};margin-bottom:24px;}
+        .legend{display:flex;gap:20px;font-size:12px;color:${MUTED};margin-bottom:16px;flex-wrap:wrap;}
+        .dot{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle;}
+        .chart-wrap{display:flex;width:100%;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid ${BORDER};}
+        .y-axis{position:relative;width:${yW}px;height:${cH}px;flex-shrink:0;}
+        .bars-col{flex:1;display:flex;flex-direction:column;}
+        .bars-area{position:relative;height:${cH}px;display:flex;align-items:flex-end;}
+        .x-labels{display:flex;padding-top:8px;}
+        pre{white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.9;color:${TEXT};background:${BG};border:1px solid ${BORDER};border-radius:10px;padding:20px;}
+        .footer{font-size:11px;color:${MUTED};margin-top:20px;padding-top:16px;border-top:1px solid ${BORDER};}
+        @media print{
+          body{padding:0;}
+          .card{border-radius:0;border:none;min-height:100vh;padding:32px 40px;}
+        }
+      </style>
+    </head><body>
+      <div class="card">
+        <h2>AI Spend — Weekly Report</h2>
+        <div class="sub">Generated ${todayISO()}</div>
+        <div class="legend">
+          <span><span class="dot" style="background:${ANT_COLOR};"></span>Anthropic</span>
+          <span><span class="dot" style="background:${OAI_COLOR};"></span>OpenAI</span>
+          ${effectiveBudgetWk > 0 ? `<span><span style="display:inline-block;width:18px;height:2px;background:${BUD_COLOR};margin-right:5px;vertical-align:middle;border-radius:2px;"></span>Budget ${fmtUSD(effectiveBudgetWk)}/wk</span>` : ""}
+        </div>
+        <div class="chart-wrap">
+          <div class="y-axis">${yAxisHtml}</div>
+          <div class="bars-col">
+            <div class="bars-area">
+              ${gridHtml}
+              ${budLineHtml}
+              ${barsHtml}
+            </div>
+            <div class="x-labels">
+              ${reportWeeks.map(w => `<div style="flex:1;text-align:center;font-size:11px;color:${MUTED};">${w.short}</div>`).join("")}
+            </div>
+          </div>
+        </div>
+        <pre>${plainText}</pre>
+        <div class="footer">AI Spend Dashboard · ${todayISO()}</div>
+      </div>
+      <script>window.onload=()=>{setTimeout(()=>window.print(),300);};</script>
+    </body></html>`;
+
+    const win = window.open("", "_blank");
+    if (win) { win.document.write(html); win.document.close(); }
   }
 
   function copyCSV() {
@@ -792,7 +915,7 @@ export default function WeeklySpendPage() {
             Weekly spend 2026
           </SectionTitle>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            <button onClick={() => setShowReport(true)}
+            <button onClick={openReport}
               style={{ ...btnStyle(false), padding: "4px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
               <FileText size={12} /> Weekly report
             </button>
@@ -1044,14 +1167,16 @@ export default function WeeklySpendPage() {
         >
           <div onClick={(e) => e.stopPropagation()} style={{
             background: "var(--panel)", border: "1px solid var(--line)",
-            borderRadius: "var(--r-lg)", padding: 28, maxWidth: 640, width: "100%",
+            borderRadius: "var(--r-lg)", padding: 28, maxWidth: 660, width: "100%",
             boxShadow: "0 24px 48px rgba(0,0,0,.35)",
+            maxHeight: "90vh", overflowY: "auto",
           }}>
+            {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Weekly spend report</div>
                 <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
-                  Last 4 active weeks · ready to paste in Slack or email
+                  Last 4 active weeks · paste in Slack or email
                 </div>
               </div>
               <button onClick={() => setShowReport(false)}
@@ -1060,17 +1185,53 @@ export default function WeeklySpendPage() {
               </button>
             </div>
 
-            <pre style={{
-              fontSize: 13, color: "var(--ink-2)", lineHeight: 1.8,
-              background: "var(--panel-2)", border: "1px solid var(--line)",
-              borderRadius: "var(--r-sm)", padding: "14px 16px",
-              whiteSpace: "pre-wrap", wordBreak: "break-word",
-              margin: "0 0 16px", fontFamily: "inherit",
-            }}>
-              {reportText}
-            </pre>
+            {/* Mini 4-week chart */}
+            {reportWeeks.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ height: 160 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={reportWeeks} margin={{ top: 16, right: 8, left: -20, bottom: 0 }} barSize={32}>
+                      <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="short" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                      <YAxis tickLine={false} axisLine={false} tickFormatter={(v) => fmtUSD(v, { compact: true })} width={60} />
+                      {hasBudget && effectiveBudgetWk > 0 && (
+                        <ReferenceLine y={effectiveBudgetWk} stroke="var(--danger)" strokeDasharray="4 3" strokeWidth={1.5} />
+                      )}
+                      <Bar dataKey="anthropic" stackId="a" fill={PROVIDER_HEX.anthropic} radius={[0, 0, 0, 0]} isAnimationActive={false} />
+                      <Bar dataKey="openai"    stackId="a" fill={PROVIDER_HEX.openai}    radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                        <LabelList dataKey="total" position="top"
+                          formatter={(v: unknown) => (v as number) > 0 ? fmtUSD(v as number, { compact: true }) : ""}
+                          style={{ fontSize: 10, fill: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ display: "flex", gap: 12, justifyContent: "center", fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>
+                  <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: PROVIDER_HEX.anthropic, marginRight: 4, verticalAlign: "middle" }} />Anthropic</span>
+                  <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: PROVIDER_HEX.openai,    marginRight: 4, verticalAlign: "middle" }} />OpenAI</span>
+                  {hasBudget && effectiveBudgetWk > 0 && (
+                    <span><span style={{ display: "inline-block", width: 14, height: 2, background: "var(--danger)", marginRight: 4, verticalAlign: "middle" }} />Budget {fmtUSD(effectiveBudgetWk)}/wk</span>
+                  )}
+                </div>
+              </div>
+            )}
 
-            <div style={{ display: "flex", gap: 8 }}>
+            {/* Editable text area */}
+            <textarea
+              value={editableReport}
+              onChange={(e) => setEditableReport(e.target.value)}
+              style={{
+                width: "100%", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.8,
+                background: "var(--panel-2)", border: "1px solid var(--line)",
+                borderRadius: "var(--r-sm)", padding: "14px 16px",
+                whiteSpace: "pre-wrap", wordBreak: "break-word",
+                margin: "0 0 12px", fontFamily: "inherit", resize: "vertical",
+                minHeight: 120, boxSizing: "border-box", outline: "none",
+              }}
+            />
+
+            {/* Action row */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <button onClick={copyReport}
                 style={{ ...btnStyle(reportCopied), padding: "7px 16px", display: "flex", alignItems: "center", gap: 6 }}>
                 {reportCopied ? <Check size={13} /> : <Copy size={13} />}
@@ -1078,8 +1239,18 @@ export default function WeeklySpendPage() {
               </button>
               <button onClick={downloadReport}
                 style={{ ...btnStyle(false), padding: "7px 16px", display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={13} /> Download .txt
+                <Download size={13} /> .txt
               </button>
+              <button onClick={downloadPDF}
+                style={{ ...btnStyle(false), padding: "7px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+                <Download size={13} /> PDF
+              </button>
+              {editableReport !== reportText && (
+                <button onClick={() => setEditableReport(reportText)}
+                  style={{ ...btnStyle(false), padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+                  <RefreshCw size={13} /> Regenerate
+                </button>
+              )}
             </div>
           </div>
         </div>
