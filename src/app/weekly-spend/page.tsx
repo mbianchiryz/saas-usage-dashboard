@@ -11,7 +11,7 @@ import { parseAmexCsv, type AmexRow } from "@/lib/amex-parser";
 import { normaliseStore, type AmexStore } from "@/lib/amex-merge";
 import {
   ChevronDown, ChevronUp, Wallet,
-  Download, Copy, Check, AlertTriangle,
+  Download, Copy, Check, AlertTriangle, FileText, X,
 } from "lucide-react";
 
 const SHARED_KEY    = "amex_csv";
@@ -126,6 +126,57 @@ function exportCsv(weeks: WeekRow[], filename: string) {
   const url    = URL.createObjectURL(new Blob([header + body], { type: "text/csv;charset=utf-8;" }));
   Object.assign(document.createElement("a"), { href: url, download: filename }).click();
   URL.revokeObjectURL(url);
+}
+
+/* ── Weekly report generator ─────────────────────────────────────────────── */
+function buildReport(activeWeeks: WeekRow[], budgetWk: number, hasBudget: boolean): string {
+  const w4  = activeWeeks.filter(w => w.total > 0).slice(-4);
+  if (w4.length === 0) return "No spend data available for this period.";
+
+  const cur   = w4[w4.length - 1];
+  const prev  = w4.length >= 2 ? w4[w4.length - 2] : null;
+  const first = w4[0];
+
+  // ── Line 1: spend vs budget ──
+  let line1 = `*AI spend — week of ${cur.label}:* ${fmtUSD(cur.total)}`;
+  if (hasBudget && budgetWk > 0) {
+    const diff = cur.total - budgetWk;
+    line1 += ` vs ${fmtUSD(budgetWk)} budget — ${fmtUSD(Math.abs(diff))} ${diff > 0 ? "over" : "under"}.`;
+  } else {
+    line1 += ".";
+  }
+
+  // ── Line 2: trend narrative ──
+  const trendStr  = w4.map(w => `${fmtUSD(w.total, { compact: true })} (${w.short})`).join(" → ");
+  const goingDown = cur.total < first.total;
+  const underBudget = hasBudget && budgetWk > 0 && cur.total <= budgetWk;
+  const adj = hasBudget && budgetWk > 0
+    ? (underBudget && goingDown ? "still healthy" : underBudget ? "healthy" : goingDown ? "improving" : "worth watching")
+    : (goingDown ? "positive" : "mixed");
+
+  let line2 = `Trend is ${adj} directionally — ${goingDown ? "down" : "up"} from ${trendStr}.`;
+
+  if (prev) {
+    const diff   = cur.total - prev.total;
+    const pct    = Math.abs(diff / prev.total);
+    const verb   = pct < 0.12 ? "crept" : diff > 0 ? "moved" : "pulled";
+    const mag    = pct < 0.12 ? "slightly" : pct < 0.35 ? "moderately" : "significantly";
+    const vsLast = diff < 0 ? "under" : "above";
+    if (hasBudget && budgetWk > 0) {
+      const vsBudget = cur.total > budgetWk ? "over budget" : "under budget";
+      line2 += ` We came in ${vsLast} the previous week and ${verb} ${mag} ${vsBudget}.`;
+    } else {
+      line2 += ` We came in ${vsLast} the previous week.`;
+    }
+  }
+
+  // ── Line 3: provider mix ──
+  const [bigName, bigAmt, smlName, smlAmt] = cur.openai >= cur.anthropic
+    ? ["OpenAI", cur.openai, "Anthropic", cur.anthropic]
+    : ["Anthropic", cur.anthropic, "OpenAI", cur.openai];
+  const line3 = `What stands out is the mix: *${fmtUSD(bigAmt)} ${bigName} vs ${fmtUSD(smlAmt)} ${smlName}*.`;
+
+  return [line1, line2, line3].join("\n");
 }
 
 /* ── Budget type ──────────────────────────────────────────────────────────── */
@@ -244,8 +295,10 @@ export default function WeeklySpendPage() {
   const [store,     setStore]     = useState<AmexStore>({ rows: [], history: [] });
   const [loading,   setLoading]   = useState(true);
   const [tableOpen, setTableOpen] = useState(false);
-  const [copied,    setCopied]    = useState(false);
+  const [copied,       setCopied]       = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
+  const [showReport,   setShowReport]   = useState(false);
+  const [reportCopied, setReportCopied] = useState(false);
 
   /* Filters */
   const [preset,     setPreset]     = useState<FilterPreset>("all");
@@ -470,6 +523,24 @@ export default function WeeklySpendPage() {
     : preset === "ytd"          ? "YTD"
     : preset === "last-quarter" ? "Last quarter"
     : `${customFrom} → ${customTo}`;
+
+  const reportText = useMemo(
+    () => buildReport(chartWeeks, effectiveBudgetWk, hasBudget),
+    [chartWeeks, effectiveBudgetWk, hasBudget],
+  );
+
+  function copyReport() {
+    navigator.clipboard.writeText(reportText).then(() => {
+      setReportCopied(true); setTimeout(() => setReportCopied(false), 2000);
+    });
+  }
+
+  function downloadReport() {
+    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    Object.assign(document.createElement("a"), { href: url, download: `ai-spend-report-${todayISO()}.txt` }).click();
+    URL.revokeObjectURL(url);
+  }
 
   function copyCSV() {
     const rows = weeks.filter(w => w.total > 0)
@@ -721,6 +792,10 @@ export default function WeeklySpendPage() {
             Weekly spend 2026
           </SectionTitle>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button onClick={() => setShowReport(true)}
+              style={{ ...btnStyle(false), padding: "4px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+              <FileText size={12} /> Weekly report
+            </button>
             <button onClick={copyCSV}
               style={{ ...btnStyle(false), padding: "4px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
               {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -957,6 +1032,58 @@ export default function WeeklySpendPage() {
           </>
         )}
       </Panel>
+
+      {/* ── Weekly report modal ── */}
+      {showReport && (
+        <div
+          onClick={() => setShowReport(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,.55)",
+            zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: "var(--panel)", border: "1px solid var(--line)",
+            borderRadius: "var(--r-lg)", padding: 28, maxWidth: 640, width: "100%",
+            boxShadow: "0 24px 48px rgba(0,0,0,.35)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Weekly spend report</div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
+                  Last 4 active weeks · ready to paste in Slack or email
+                </div>
+              </div>
+              <button onClick={() => setShowReport(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4 }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <pre style={{
+              fontSize: 13, color: "var(--ink-2)", lineHeight: 1.8,
+              background: "var(--panel-2)", border: "1px solid var(--line)",
+              borderRadius: "var(--r-sm)", padding: "14px 16px",
+              whiteSpace: "pre-wrap", wordBreak: "break-word",
+              margin: "0 0 16px", fontFamily: "inherit",
+            }}>
+              {reportText}
+            </pre>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={copyReport}
+                style={{ ...btnStyle(reportCopied), padding: "7px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+                {reportCopied ? <Check size={13} /> : <Copy size={13} />}
+                {reportCopied ? "Copied!" : "Copy to clipboard"}
+              </button>
+              <button onClick={downloadReport}
+                style={{ ...btnStyle(false), padding: "7px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+                <Download size={13} /> Download .txt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
