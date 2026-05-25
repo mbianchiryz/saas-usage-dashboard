@@ -24,7 +24,7 @@ export interface MergeResult {
  * for the same amount) while still preventing re-uploads of the same
  * CSV from inflating the totals.
  */
-export function mergeRows(existing: AmexRow[], incoming: AmexRow[]): MergeResult {
+export function mergeRows(existing: AmexRow[], incoming: AmexRow[], uploadId?: string): MergeResult {
   // Count how many times each signature already exists in the store.
   const existingCounts = new Map<string, number>();
   for (const r of existing) {
@@ -50,7 +50,7 @@ export function mergeRows(existing: AmexRow[], incoming: AmexRow[]): MergeResult
       continue;
     }
 
-    merged.push(r);
+    merged.push(uploadId ? { ...r, _uploadId: uploadId } : r);
     added++;
   }
 

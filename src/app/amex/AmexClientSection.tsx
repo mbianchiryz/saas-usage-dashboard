@@ -4,7 +4,7 @@ import { AmexCsvUploader } from "@/components/AmexCsvUploader";
 import { AmexCsvAnalysis } from "@/components/AmexCsvAnalysis";
 import { parseAmexCsv, type ParseResult, type AmexRow } from "@/lib/amex-parser";
 import { mergeRows, normaliseStore, type AmexStore, type UploadEvent } from "@/lib/amex-merge";
-import { Cloud, CloudOff, Clock, FileText } from "lucide-react";
+import { Cloud, CloudOff, Clock, FileText, Trash2 } from "lucide-react";
 
 const SHARED_KEY    = "amex_csv";
 const LS_KEY_STORE  = "amex_store_v2";
@@ -89,16 +89,26 @@ export function AmexClientSection() {
   }
 
   async function handleParsed(result: ParseResult, name: string) {
-    const { merged, added, duplicates } = mergeRows(store.rows, result.rows);
+    const uploadId = new Date().toISOString();
+    const { merged, added, duplicates } = mergeRows(store.rows, result.rows, uploadId);
     const event: UploadEvent = {
       fileName:   name,
-      uploadedAt: new Date().toISOString(),
+      uploadedAt: uploadId,
       total:      result.rows.length,
       added,
       duplicates,
     };
     const next: AmexStore = { rows: merged, history: [event, ...store.history].slice(0, 20) };
     setLastMerge({ fileName: name, added, duplicates });
+    await persist(next);
+  }
+
+  async function handleDeleteUpload(uploadedAt: string) {
+    const next: AmexStore = {
+      rows:    store.rows.filter(r => r._uploadId !== uploadedAt),
+      history: store.history.filter(h => h.uploadedAt !== uploadedAt),
+    };
+    setLastMerge(null);
     await persist(next);
   }
 
@@ -129,8 +139,9 @@ export function AmexClientSection() {
       }}>
         <Clock size={14} style={{ marginTop: 1, flexShrink: 0, color: "#D97706" }} />
         <span>
-          <strong>Tip:</strong> uploads append to existing data. Drop your historical statement once,
-          then upload the weekly export — duplicate rows are detected and skipped automatically.
+          <strong>Multi-card support:</strong> each upload appends to the shared store — upload Gold
+          and Platinum statements separately each month. Duplicate rows across cards are detected
+          automatically. Use the <strong>🗑</strong> button in the history to remove a specific upload.
         </span>
       </div>
 
@@ -180,7 +191,7 @@ export function AmexClientSection() {
 
       {/* Upload history */}
       {store.history.length > 0 && (
-        <details style={{ fontSize: 12, color: "var(--ink-3)" }}>
+        <details open style={{ fontSize: 12, color: "var(--ink-3)" }}>
           <summary style={{ cursor: "pointer", padding: "4px 0", color: "var(--ink-3)" }}>
             Upload history · {store.history.length} upload{store.history.length === 1 ? "" : "s"} · {store.rows.length} total rows
           </summary>
@@ -192,18 +203,39 @@ export function AmexClientSection() {
                 <th style={{ ...thHist, textAlign: "right" }}>Rows</th>
                 <th style={{ ...thHist, textAlign: "right" }}>Added</th>
                 <th style={{ ...thHist, textAlign: "right" }}>Duplicates</th>
+                <th style={{ ...thHist, textAlign: "center" }}>Remove</th>
               </tr>
             </thead>
             <tbody>
-              {store.history.map((h, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <td style={tdHist}>{new Date(h.uploadedAt).toLocaleString()}</td>
-                  <td style={tdHist}>{h.fileName}</td>
-                  <td style={{ ...tdHist, textAlign: "right" }}>{h.total}</td>
-                  <td style={{ ...tdHist, textAlign: "right", color: "var(--accent)" }}>{h.added}</td>
-                  <td style={{ ...tdHist, textAlign: "right", color: "var(--ink-4)" }}>{h.duplicates}</td>
-                </tr>
-              ))}
+              {store.history.map((h, i) => {
+                const canDelete = store.rows.some(r => r._uploadId === h.uploadedAt);
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
+                    <td style={tdHist}>{new Date(h.uploadedAt).toLocaleString()}</td>
+                    <td style={tdHist}>{h.fileName}</td>
+                    <td style={{ ...tdHist, textAlign: "right" }}>{h.total}</td>
+                    <td style={{ ...tdHist, textAlign: "right", color: "var(--accent)" }}>{h.added}</td>
+                    <td style={{ ...tdHist, textAlign: "right", color: "var(--ink-4)" }}>{h.duplicates}</td>
+                    <td style={{ ...tdHist, textAlign: "center" }}>
+                      {canDelete ? (
+                        <button
+                          onClick={() => handleDeleteUpload(h.uploadedAt)}
+                          title={`Remove rows from ${h.fileName}`}
+                          style={{
+                            background: "none", border: "none", cursor: "pointer",
+                            color: "var(--danger)", padding: "2px 6px", borderRadius: "var(--r-sm)",
+                            display: "inline-flex", alignItems: "center",
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      ) : (
+                        <span style={{ color: "var(--ink-4)", fontSize: 10 }}>legacy</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </details>

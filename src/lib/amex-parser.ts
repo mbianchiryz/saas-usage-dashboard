@@ -5,6 +5,7 @@ export interface AmexRow {
   category?: string;
   reference?: string;
   provider: "anthropic" | "openai" | null;
+  _uploadId?: string;     // ISO timestamp of the upload that added this row
 }
 
 export interface ParseResult {
